@@ -2,6 +2,9 @@ import Layout from "../components/Layout";
 import { useState, useEffect } from "react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
+import { toast } from "react-hot-toast";
 
 const AdminPanel = () => {
     const { user } = useAuth();
@@ -40,14 +43,96 @@ const AdminPanel = () => {
 
     const lowStockCount = stock.filter(item => item.quantity < 20).length;
 
+    const handleDownloadReport = async () => {
+        try {
+            const toastId = toast.loading("Assembling Intelligence Report...");
+            
+            const notifRes = await api.get("/notifications");
+            const notifications = notifRes.data;
+
+            const doc = new jsPDF();
+            
+            doc.setFontSize(22);
+            doc.setTextColor(12, 26, 61);
+            doc.text("Phoenix Systems - Executive Report", 14, 22);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Generated exactly at: ${new Date().toLocaleString()}`, 14, 30);
+            
+            // Section 1
+            doc.setFontSize(14);
+            doc.setTextColor(225, 29, 72);
+            doc.text("1. Recent Organizational Operations", 14, 42);
+            
+            const activityData = notifications.map(notif => [
+                new Date(notif.created_at).toLocaleString(),
+                notif.user_name,
+                notif.message
+            ]);
+            
+            doc.autoTable({
+                startY: 48,
+                head: [["Timestamp", "Operator ID", "Operation Details"]],
+                body: activityData,
+                theme: 'striped',
+                headStyles: { fillColor: [225, 29, 72] },
+                styles: { fontSize: 8 },
+                columnStyles: { 2: { cellWidth: 120 } }
+            });
+
+            // Section 2
+            const finalY = doc.lastAutoTable.finalY || 48;
+            
+            doc.setFontSize(14);
+            doc.setTextColor(12, 26, 61);
+            doc.text("2. Global Stock Registry Status", 14, finalY + 14);
+            
+            const stockData = stock.map(s => [
+                s.product_name,
+                s.product_sku || "N/A",
+                s.warehouse_name,
+                s.shelf_code || "—",
+                s.quantity.toString(),
+                s.quantity === 0 ? "OUT OF STOCK" : s.quantity < 20 ? "LOW STOCK" : "OPTIMAL"
+            ]);
+            
+            doc.autoTable({
+                startY: finalY + 20,
+                head: [["Item Description", "SKU", "Facility", "Shelf Node", "Units", "Condition"]],
+                body: stockData,
+                theme: 'grid',
+                headStyles: { fillColor: [12, 26, 61] },
+                styles: { fontSize: 8 }
+            });
+            
+            doc.save("Phoenix_Systems_Executive_Report.pdf");
+            toast.success("Intelligence Report securely acquired.", { id: toastId });
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to generate intelligence documentation.");
+        }
+    };
+
     return (
         <Layout>
             <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
-                <header className="flex justify-between align-center mb-2">
+                <header className="flex justify-between align-center mb-2" style={{ flexWrap: "wrap", gap: "1rem" }}>
                     <div>
                         <h1>Executive <span className="text-red">Overview</span></h1>
                         <p className="text-muted">Real-time intelligence across all warehouses and products.</p>
                     </div>
+                    {role === "admin" && (
+                        <button onClick={handleDownloadReport} style={{
+                            backgroundColor: "var(--accent)",
+                            padding: "0.75rem 1.5rem",
+                            fontWeight: "800",
+                            letterSpacing: "0.5px",
+                            boxShadow: "0 4px 15px rgba(225, 29, 72, 0.3)"
+                        }}>
+                            ⤓ Download Report
+                        </button>
+                    )}
                 </header>
 
                 {message.text && (
