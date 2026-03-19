@@ -1,6 +1,7 @@
 import Layout from "../components/Layout";
 import { useState, useEffect } from "react";
 import api from "../api/axios";
+import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 
 const AdminProducts = () => {
@@ -78,8 +79,9 @@ const AdminProducts = () => {
             await api.put(`/products/${editingProduct.id}`, editData);
             setEditingProduct(null);
             fetchProducts();
+            toast.success("Product specs updated successfully.");
         } catch (error) {
-            alert("Failed to update product specs.");
+            toast.error("Failed to update product specs.");
         }
     };
 
@@ -88,8 +90,9 @@ const AdminProducts = () => {
         try {
             await api.delete(`/products/${id}`);
             fetchProducts();
+            toast.success("Product deleted successfully.");
         } catch (error) {
-            alert("Failed to delete product. Ensure it has no active stock or try again.");
+            toast.error("Failed to delete product. Ensure it has no active stock or try again.");
         }
     };
 

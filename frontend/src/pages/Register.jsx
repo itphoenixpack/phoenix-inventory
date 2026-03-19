@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import api from "../api/axios";
 import logo from "../assets/logo.png";
 import Navbar from "../components/Navbar";
@@ -26,7 +27,7 @@ const Register = () => {
 
         try {
             await api.post("/auth/register", formData);
-            alert("Registration successful! Authentication established.");
+            toast.success("Registration successful! Authentication established.");
             navigate("/");
         } catch (error) {
             setError(error.response?.data?.error || "Registry error. Access denied.");

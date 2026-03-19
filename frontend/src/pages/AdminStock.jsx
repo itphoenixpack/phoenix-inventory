@@ -1,6 +1,7 @@
 import Layout from "../components/Layout";
 import { useState, useEffect } from "react";
 import api from "../api/axios";
+import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 
 const AdminStock = () => {
@@ -34,8 +35,9 @@ const AdminStock = () => {
         try {
             await api.delete(`/stock/${id}`);
             fetchStock();
+            toast.success("Stock record deleted successfully.");
         } catch (error) {
-            alert("Failed to delete stock record.");
+            toast.error("Failed to delete stock record.");
         }
     };
 
@@ -50,8 +52,9 @@ const AdminStock = () => {
             await api.put(`/stock/${editingItem.id}`, editData);
             setEditingItem(null);
             fetchStock();
+            toast.success("Stock record updated successfully.");
         } catch (error) {
-            alert("Failed to update stock record.");
+            toast.error("Failed to update stock record.");
         }
     };
 
