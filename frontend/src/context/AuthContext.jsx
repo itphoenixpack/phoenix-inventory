@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
         const name = localStorage.getItem("name");
 
         if (token && role) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setUser({ token, role, name });
         }
         setLoading(false);
@@ -38,4 +39,5 @@ export const AuthProvider = ({ children }) => {
     );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
