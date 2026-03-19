@@ -24,9 +24,13 @@ const addStock = async (req, res) => {
       );
     }
 
+    // Fetch product name
+    const prodRes = await pool.query('SELECT name FROM products WHERE id = $1', [product_id]);
+    const productName = prodRes.rows.length > 0 ? prodRes.rows[0].name : product_id;
+
     // Notification trigger
     const user_name = req.user?.name || "System";
-    const notificationMessage = `Stock ADDED: ${quantity} units to ${product_id} in warehouse ${warehouse_id} by ${user_name}`;
+    const notificationMessage = `Stock ADDED: ${quantity} units to ${productName} in warehouse ${warehouse_id} by ${user_name}`;
     await pool.query(
       'INSERT INTO notifications (message, user_name) VALUES ($1, $2)',
       [notificationMessage, user_name]
@@ -61,9 +65,13 @@ const removeStock = async (req, res) => {
       [quantity, existing.rows[0].id]
     );
 
+    // Fetch product name
+    const prodRes = await pool.query('SELECT name FROM products WHERE id = $1', [product_id]);
+    const productName = prodRes.rows.length > 0 ? prodRes.rows[0].name : product_id;
+
     // Notification trigger
     const user_name = req.user?.name || "System";
-    const notificationMessage = `Stock REMOVED: ${quantity} units from ${product_id} in warehouse ${warehouse_id} by ${user_name}`;
+    const notificationMessage = `Stock REMOVED: ${quantity} units from ${productName} in warehouse ${warehouse_id} by ${user_name}`;
     await pool.query(
       'INSERT INTO notifications (message, user_name) VALUES ($1, $2)',
       [notificationMessage, user_name]
@@ -106,9 +114,13 @@ const updateStockItem = async (req, res) => {
       return res.status(404).json({ message: 'Stock record not found' });
     }
 
+    // Fetch product name using the product_id from the updated record
+    const prodRes = await pool.query('SELECT name FROM products WHERE id = $1', [result.rows[0].product_id]);
+    const productName = prodRes.rows.length > 0 ? prodRes.rows[0].name : `Record ID ${id}`;
+
     // Notification trigger
     const user_name = req.user?.name || "System";
-    const notificationMessage = `Stock ADJUSTED: Record ID ${id} set to ${quantity} units by ${user_name}`;
+    const notificationMessage = `Stock ADJUSTED: ${productName} set to ${quantity} units by ${user_name}`;
     await pool.query(
       'INSERT INTO notifications (message, user_name) VALUES ($1, $2)',
       [notificationMessage, user_name]
