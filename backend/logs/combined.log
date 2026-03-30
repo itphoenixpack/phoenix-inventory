@@ -1,0 +1,54 @@
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T08:42:42.585Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T08:42:42.590Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:08:44:21 +0000] \"POST /api/auth/refresh HTTP/1.1\" 200 305 \"http://localhost:5174/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0\"","timestamp":"2026-03-25T08:44:21.850Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:08:44:29 +0000] \"POST /api/auth/refresh HTTP/1.1\" 200 305 \"http://localhost:5174/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0\"","timestamp":"2026-03-25T08:44:29.346Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:08:44:36 +0000] \"POST /api/auth/refresh HTTP/1.1\" 200 305 \"http://localhost:5174/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0\"","timestamp":"2026-03-25T08:44:36.598Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:08:59:32 +0000] \"POST /api/auth/refresh HTTP/1.1\" 200 305 \"http://localhost:5175/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0\"","timestamp":"2026-03-25T08:59:32.673Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T10:30:26.438Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T10:30:26.443Z"}
+{"level":"error","message":"Session rotation failed: Refresh token protocol missing.","statusCode":401,"timestamp":"2026-03-25T10:30:55.086Z"}
+{"level":"error","message":"403 - Invalid or expired session credentials. - /api/auth/refresh - POST - ::1","timestamp":"2026-03-25T10:30:55.090Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:10:30:55 +0000] \"POST /api/auth/refresh HTTP/1.1\" 403 69 \"http://localhost:5173/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\"","timestamp":"2026-03-25T10:30:55.102Z"}
+{"level":"error","message":"401 - Authentication failed: Invalid credentials. - /api/auth/login - POST - ::1","timestamp":"2026-03-25T10:31:19.885Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:10:31:19 +0000] \"POST /api/auth/login HTTP/1.1\" 401 73 \"http://localhost:5173/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\"","timestamp":"2026-03-25T10:31:19.887Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:10:31:55 +0000] \"POST /api/auth/register HTTP/1.1\" 201 243 \"http://localhost:5173/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\"","timestamp":"2026-03-25T10:31:55.086Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T10:33:44.478Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T10:33:44.487Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T10:34:01.218Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T10:34:01.299Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T10:34:03.219Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T10:34:03.224Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T10:37:58.935Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T10:37:58.940Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T10:38:42.505Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T10:38:42.511Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T10:39:48.198Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T10:39:48.202Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T12:18:08.905Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T12:18:08.912Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:12:19:23 +0000] \"HEAD /health HTTP/1.1\" 200 191 \"-\" \"curl/8.13.0\"","timestamp":"2026-03-25T12:19:23.741Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:12:20:22 +0000] \"POST /api/auth/login HTTP/1.1\" 200 305 \"http://localhost:5175/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0\"","timestamp":"2026-03-25T12:20:22.226Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:12:20:32 +0000] \"GET /health HTTP/1.1\" 200 191 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\"","timestamp":"2026-03-25T12:20:32.149Z"}
+{"level":"warn","message":"Resource not found - /favicon.ico","timestamp":"2026-03-25T12:20:35.193Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:12:20:35 +0000] \"GET /favicon.ico HTTP/1.1\" 404 63 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\"","timestamp":"2026-03-25T12:20:35.196Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T12:25:15.378Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T12:25:15.383Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:12:40:33 +0000] \"HEAD /health HTTP/1.1\" 200 192 \"-\" \"curl/8.13.0\"","timestamp":"2026-03-25T12:40:33.216Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T13:09:45.572Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T13:09:45.576Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:13:10:53 +0000] \"POST /api/auth/refresh HTTP/1.1\" 200 300 \"http://localhost:5173/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0\"","timestamp":"2026-03-25T13:10:53.062Z"}
+{"level":"info","message":"::1 - - [25/Mar/2026:13:17:54 +0000] \"POST /api/auth/refresh HTTP/1.1\" 200 300 \"http://localhost:5173/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0\"","timestamp":"2026-03-25T13:17:54.489Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T14:14:51.989Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T14:14:51.993Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-25T14:16:23.645Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-25T14:16:23.649Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-26T07:10:50.137Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-26T07:10:50.141Z"}
+{"level":"info","message":"::1 - - [26/Mar/2026:07:23:30 +0000] \"POST /api/auth/refresh HTTP/1.1\" 200 300 \"http://localhost:5173/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0\"","timestamp":"2026-03-26T07:23:30.242Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-26T07:35:54.587Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-26T07:35:54.591Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-26T07:36:46.932Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-26T07:36:46.938Z"}
+{"level":"info","message":"Phoenix Systems Operational on Port 5000","timestamp":"2026-03-26T08:31:40.635Z"}
+{"level":"info","message":"Environment: development","timestamp":"2026-03-26T08:31:40.640Z"}
+{"level":"info","message":"::1 - - [26/Mar/2026:08:31:49 +0000] \"POST /api/auth/refresh HTTP/1.1\" 200 300 \"http://localhost:5173/\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0\"","timestamp":"2026-03-26T08:31:49.817Z"}

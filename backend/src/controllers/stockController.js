@@ -83,42 +83,94 @@ const removeStock = async (req, res) => {
   }
 };
 
-// GET STOCK
+// GET STOCK — primary `inventory` rows, plus legacy `stock` table rows when present (deduped).
+const stockRowKey = (r) => `${r.product_id}-${r.warehouse_id ?? 'null'}-${(r.shelf_code || '').trim()}`;
+
 const getStock = async (req, res) => {
   try {
-    const stock = await pool.query(
-      `SELECT i.id, p.name as product_name, p.sku as product_sku, w.name as warehouse_name, i.quantity, i.shelf_code
-       FROM inventory i
-       JOIN products p ON i.product_id = p.id
-       JOIN warehouses w ON i.warehouse_id = w.id`
-    );
+    let inventoryRows = [];
+    try {
+      const inv = await pool.query(
+        `SELECT i.id, i.product_id, p.name AS product_name, p.sku AS product_sku,
+                w.id AS warehouse_id, w.name AS warehouse_name, i.quantity, i.shelf_code,
+                'inventory' AS source
+         FROM inventory i
+         JOIN products p ON i.product_id = p.id
+         JOIN warehouses w ON i.warehouse_id = w.id`
+      );
+      inventoryRows = inv.rows;
+    } catch (e) {
+      if (e.code !== '42P01') throw e;
+    }
 
-    res.json(stock.rows);
+    let legacyRows = [];
+    try {
+      const leg = await pool.query(
+        `SELECT s.id, s.product_id,
+                p.name AS product_name, p.sku AS product_sku,
+                w.id AS warehouse_id,
+                COALESCE(w.name, s.warehouse_name) AS warehouse_name,
+                s.quantity, s.shelf_code,
+                'stock' AS source
+         FROM stock s
+         JOIN products p ON s.product_id = p.id
+         LEFT JOIN warehouses w ON w.id = (
+           CASE
+             WHEN s.warehouse_name ILIKE '%2nd warehouse%' OR TRIM(s.warehouse_name) = 'Warehouse 2' THEN 1
+             WHEN s.warehouse_name ILIKE '%3rd warehouse%' OR TRIM(s.warehouse_name) = 'Warehouse 3' THEN 2
+             ELSE (SELECT id FROM warehouses w2 WHERE w2.name = s.warehouse_name LIMIT 1)
+           END
+         )`
+      );
+      legacyRows = leg.rows;
+    } catch (e) {
+      if (e.code !== '42P01') throw e;
+    }
+
+    const seen = new Set(inventoryRows.map(stockRowKey));
+    const merged = [
+      ...inventoryRows,
+      ...legacyRows.filter((r) => !seen.has(stockRowKey(r))),
+    ];
+
+    res.json(merged);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// UPDATE STOCK ITEM (Direct adjustment)
+// UPDATE STOCK ITEM (Direct adjustment — handles both inventory and legacy stock tables)
 const updateStockItem = async (req, res) => {
   const { id } = req.params;
-  const { quantity, shelf_code } = req.body;
+  const { quantity, shelf_code, source } = req.body;
 
   try {
-    const result = await pool.query(
-      'UPDATE inventory SET quantity = $1, shelf_code = $2 WHERE id = $3 RETURNING *',
-      [quantity, shelf_code, id]
-    );
+    let result;
+    let productId;
 
-    if (result.rows.length === 0) {
+    if (source === 'stock') {
+      // Legacy stock table
+      result = await pool.query(
+        'UPDATE stock SET quantity = $1, shelf_code = $2 WHERE id = $3 RETURNING *',
+        [quantity, shelf_code, id]
+      );
+      productId = result.rows[0]?.product_id;
+    } else {
+      // Primary inventory table
+      result = await pool.query(
+        'UPDATE inventory SET quantity = $1, shelf_code = $2 WHERE id = $3 RETURNING *',
+        [quantity, shelf_code, id]
+      );
+      productId = result.rows[0]?.product_id;
+    }
+
+    if (!result || result.rows.length === 0) {
       return res.status(404).json({ message: 'Stock record not found' });
     }
 
-    // Fetch product name using the product_id from the updated record
-    const prodRes = await pool.query('SELECT name FROM products WHERE id = $1', [result.rows[0].product_id]);
+    const prodRes = await pool.query('SELECT name FROM products WHERE id = $1', [productId]);
     const productName = prodRes.rows.length > 0 ? prodRes.rows[0].name : `Record ID ${id}`;
 
-    // Notification trigger
     const user_name = req.user?.name || "System";
     const notificationMessage = `Stock ADJUSTED: ${productName} set to ${quantity} units by ${user_name}`;
     await pool.query(
@@ -132,12 +184,18 @@ const updateStockItem = async (req, res) => {
   }
 };
 
-// DELETE STOCK ITEM (Remove from warehouse)
+// DELETE STOCK ITEM (Remove from warehouse — handles both tables)
 const deleteStockItem = async (req, res) => {
   const { id } = req.params;
+  const source = req.query.source || req.body?.source;
 
   try {
-    const result = await pool.query('DELETE FROM inventory WHERE id = $1 RETURNING *', [id]);
+    let result;
+    if (source === 'stock') {
+      result = await pool.query('DELETE FROM stock WHERE id = $1 RETURNING *', [id]);
+    } else {
+      result = await pool.query('DELETE FROM inventory WHERE id = $1 RETURNING *', [id]);
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Stock record not found' });

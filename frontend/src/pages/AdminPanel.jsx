@@ -2,8 +2,9 @@ import Layout from "../components/Layout";
 import { useState, useEffect } from "react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { isWarehouse2, isWarehouse3, stockRowKey, LABEL_W2, LABEL_W3 } from "../utils/warehouse";
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { toast } from "react-hot-toast";
 
 const AdminPanel = () => {
@@ -17,15 +18,20 @@ const AdminPanel = () => {
     const [message, setMessage] = useState({ type: "", text: "" });
 
     const fetchData = async () => {
+        setLoading(true);
         try {
-            const [prodRes, stockRes] = await Promise.all([
-                api.get("/products"),
-                api.get("/stock")
-            ]);
-            setProducts(prodRes.data);
-            setStock(stockRes.data);
+            const prodRes = await api.get("/products");
+            setProducts(Array.isArray(prodRes.data) ? prodRes.data : []);
         } catch (error) {
-            console.error("Error fetching admin data:", error);
+            console.error("Error fetching products:", error);
+            setProducts([]);
+        }
+        try {
+            const stockRes = await api.get("/stock");
+            setStock(Array.isArray(stockRes.data) ? stockRes.data : []);
+        } catch (error) {
+            console.error("Error fetching stock:", error);
+            setStock([]);
         } finally {
             setLoading(false);
         }
@@ -35,23 +41,109 @@ const AdminPanel = () => {
         fetchData();
     }, []);
 
+    const q = searchTerm.toLowerCase();
     const filteredStock = stock.filter(item =>
-        item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.product_sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase())
+        (item.product_name?.toLowerCase() || "").includes(q) ||
+        (item.product_sku?.toLowerCase() || "").includes(q) ||
+        (item.warehouse_name?.toLowerCase() || "").includes(q)
     );
 
-    const lowStockCount = stock.filter(item => item.quantity < 20).length;
+    const lowStockCount = stock.filter(item => Number(item.quantity) < 20).length;
+
+    const warehouse2Stock = filteredStock.filter(isWarehouse2);
+    const warehouse3Stock = filteredStock.filter(isWarehouse3);
+
+    const StatusPill = ({ qty }) => {
+        const q = Number(qty);
+        return (
+            <span style={{
+                padding: "0.4rem 0.8rem",
+                borderRadius: "20px",
+                fontSize: "0.7rem",
+                fontWeight: 800,
+                backgroundColor:
+                    q === 0 ? "rgba(225, 29, 72, 0.2)" :
+                    q < 10 ? "rgba(225, 29, 72, 0.1)" :
+                    q < 20 ? "rgba(234, 179, 8, 0.1)" :
+                    "rgba(16, 185, 129, 0.1)",
+                color:
+                    q === 0 ? "#ff0000" :
+                    q < 10 ? "var(--accent)" :
+                    q < 20 ? "var(--warning)" :
+                    "var(--success)",
+                border: `1px solid ${
+                    q === 0 ? "#ff0000" :
+                    q < 10 ? "var(--accent)" :
+                    q < 20 ? "var(--warning)" :
+                    "var(--success)"
+                }`
+            }}>
+                {q === 0 ? "OUT OF STOCK" :
+                 q < 10 ? "REPLENISH" :
+                 q < 20 ? "LOW" : "OPTIMAL"}
+            </span>
+        );
+    };
+
+    const AnalysisFacilityTable = ({ title, rows, borderColorVar }) => (
+        <div className="card" style={{ flex: 1, minWidth: "320px", borderTop: `4px solid var(${borderColorVar})` }}>
+            <div className="flex justify-between align-center mb-2">
+                <h3 style={{ margin: 0, fontSize: "1.05rem" }}>{title}</h3>
+                <span style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    color: "white",
+                    background: `var(${borderColorVar})`,
+                    padding: "0.2rem 0.65rem",
+                    borderRadius: "20px"
+                }}>
+                    {rows.length} ITEMS
+                </span>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th>Shelf</th>
+                            <th>Qty</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.length > 0 ? (
+                            rows.map((item) => (
+                                <tr key={stockRowKey(item)}>
+                                    <td style={{ fontWeight: 700 }}>{item.product_name}</td>
+                                    <td><code style={{ background: "var(--bg-main)", padding: "0.2rem 0.45rem", borderRadius: "4px", fontSize: "0.8rem" }}>{item.product_sku || "—"}</code></td>
+                                    <td style={{ fontWeight: 600, color: "var(--primary)" }}>{item.shelf_code || "—"}</td>
+                                    <td style={{ fontWeight: 800 }}>{item.quantity}</td>
+                                    <td><StatusPill qty={item.quantity} /></td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="5" style={{ textAlign: "center", padding: "2rem" }}>
+                                    <div className="text-muted">No stock rows for this facility.</div>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
 
     const handleDownloadReport = async () => {
+        const toastId = toast.loading("Assembling Intelligence Report...");
         try {
-            const toastId = toast.loading("Assembling Intelligence Report...");
-            
             const notifRes = await api.get("/notifications");
-            const notifications = notifRes.data;
+            const notifications = Array.isArray(notifRes.data) ? notifRes.data : [];
 
             const doc = new jsPDF();
             
+            // Header
             doc.setFontSize(22);
             doc.setTextColor(12, 26, 61);
             doc.text("Phoenix Systems - Executive Report", 14, 22);
@@ -60,57 +152,60 @@ const AdminPanel = () => {
             doc.setTextColor(100);
             doc.text(`Generated exactly at: ${new Date().toLocaleString()}`, 14, 30);
             
-            // Section 1
+            // Section 1: Operations
             doc.setFontSize(14);
             doc.setTextColor(225, 29, 72);
             doc.text("1. Recent Organizational Operations", 14, 42);
             
             const activityData = notifications.map(notif => [
                 new Date(notif.created_at).toLocaleString(),
-                notif.user_name,
+                notif.user_name || "System",
                 notif.message
             ]);
             
-            doc.autoTable({
+            autoTable(doc, {
                 startY: 48,
                 head: [["Timestamp", "Operator ID", "Operation Details"]],
                 body: activityData,
                 theme: 'striped',
                 headStyles: { fillColor: [225, 29, 72] },
                 styles: { fontSize: 8 },
-                columnStyles: { 2: { cellWidth: 120 } }
+                columnStyles: { 2: { cellWidth: 100 } }
             });
 
-            // Section 2
-            const finalY = doc.lastAutoTable.finalY || 48;
+            // Section 2: Stock
+            const finalY = doc.lastAutoTable?.finalY || 48;
             
             doc.setFontSize(14);
             doc.setTextColor(12, 26, 61);
             doc.text("2. Global Stock Registry Status", 14, finalY + 14);
             
-            const stockData = stock.map(s => [
-                s.product_name,
-                s.product_sku || "N/A",
-                s.warehouse_name,
-                s.shelf_code || "—",
-                s.quantity.toString(),
-                s.quantity === 0 ? "OUT OF STOCK" : s.quantity < 20 ? "LOW STOCK" : "OPTIMAL"
-            ]);
+            const stockData = stock.map(s => {
+                const qty = Number(s.quantity ?? 0);
+                return [
+                    s.product_name || "—",
+                    s.product_sku || "N/A",
+                    s.warehouse_name || "—",
+                    s.shelf_code || "—",
+                    qty.toString(),
+                    qty === 0 ? "OUT OF STOCK" : qty < 20 ? "LOW STOCK" : "OPTIMAL"
+                ];
+            });
             
-            doc.autoTable({
+            autoTable(doc, {
                 startY: finalY + 20,
-                head: [["Item Description", "SKU", "Facility", "Shelf Node", "Units", "Condition"]],
+                head: [["Item", "SKU", "Warehouse", "Shelf", "Units", "Condition"]],
                 body: stockData,
                 theme: 'grid',
                 headStyles: { fillColor: [12, 26, 61] },
                 styles: { fontSize: 8 }
             });
             
-            doc.save("Phoenix_Systems_Executive_Report.pdf");
+            doc.save(`Phoenix_Executive_Report_${new Date().toISOString().split('T')[0]}.pdf`);
             toast.success("Intelligence Report securely acquired.", { id: toastId });
         } catch (error) {
-            console.error(error);
-            toast.error("Failed to generate intelligence documentation.");
+            console.error("PDF Export Error:", error);
+            toast.error("Failed to generate documentation. Check console for details.", { id: toastId });
         }
     };
 
@@ -178,12 +273,17 @@ const AdminPanel = () => {
 
                 <div className="card">
                     <div className="flex justify-between align-center mb-2" style={{ flexWrap: "wrap", gap: "1rem" }}>
-                        <h2>Live Inventory Stream</h2>
+                        <div>
+                            <h2 style={{ margin: "0 0 0.35rem 0" }}>Live Analysis</h2>
+                            <p className="text-muted" style={{ margin: 0, fontSize: "0.9rem" }}>
+                                {LABEL_W2} and {LABEL_W3} line items (includes legacy registry names mapped to each facility).
+                            </p>
+                        </div>
                         <div style={{ position: "relative", width: "300px" }}>
                             <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}>🔍</span>
                             <input
                                 type="text"
-                                placeholder="Search products or locations..."
+                                placeholder="Filter by product or SKU..."
                                 style={{ paddingLeft: "36px" }}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -191,78 +291,16 @@ const AdminPanel = () => {
                         </div>
                     </div>
 
-                    <div style={{ overflowX: "auto" }}>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Product Details</th>
-                                    <th>Location</th>
-                                    <th>Internal Code</th>
-                                    <th>Available Qty</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loading ? (
-                                    <tr><td colSpan="5" style={{ textAlign: "center", padding: "4rem" }}>
-                                        <div className="text-muted">Synchronizing data stream...</div>
-                                    </td></tr>
-                                ) : filteredStock.length > 0 ? (
-                                    filteredStock.map((item) => (
-                                        <tr key={item.id}>
-                                            <td>
-                                                <div style={{ fontWeight: 700 }}>{item.product_name}</div>
-                                                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>SKU: {item.product_sku}</div>
-                                            </td>
-                                            <td>
-                                                <span style={{
-                                                    padding: "0.25rem 0.6rem",
-                                                    background: "var(--bg-main)",
-                                                    borderRadius: "6px",
-                                                    fontSize: "0.8rem",
-                                                    fontWeight: 600
-                                                }}>{item.warehouse_name}</span>
-                                            </td>
-                                            <td style={{ fontWeight: 700, color: "var(--primary)" }}>{item.shelf_code || "—"}</td>
-                                            <td style={{ fontWeight: 800 }}>{item.quantity}</td>
-                                            <td>
-                                                <span style={{
-                                                    padding: "0.4rem 0.8rem",
-                                                    borderRadius: "20px",
-                                                    fontSize: "0.7rem",
-                                                    fontWeight: 800,
-                                                    backgroundColor: 
-                                                        item.quantity === 0 ? "rgba(225, 29, 72, 0.2)" :
-                                                        item.quantity < 10 ? "rgba(225, 29, 72, 0.1)" :
-                                                        item.quantity < 20 ? "rgba(234, 179, 8, 0.1)" : 
-                                                        "rgba(16, 185, 129, 0.1)",
-                                                    color: 
-                                                        item.quantity === 0 ? "#ff0000" :
-                                                        item.quantity < 10 ? "var(--accent)" :
-                                                        item.quantity < 20 ? "var(--warning)" : 
-                                                        "var(--success)",
-                                                    border: `1px solid ${
-                                                        item.quantity === 0 ? "#ff0000" :
-                                                        item.quantity < 10 ? "var(--accent)" :
-                                                        item.quantity < 20 ? "var(--warning)" : 
-                                                        "var(--success)"
-                                                    }`
-                                                }}>
-                                                    {item.quantity === 0 ? "OUT OF STOCK" :
-                                                     item.quantity < 10 ? "REPLENISH" :
-                                                     item.quantity < 20 ? "LOW" : "OPTIMAL"}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr><td colSpan="5" style={{ textAlign: "center", padding: "4rem" }}>
-                                        <div className="text-muted">No records found matching your query.</div>
-                                    </td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    {loading ? (
+                        <div style={{ textAlign: "center", padding: "4rem" }} className="text-muted">
+                            Synchronizing warehouse analysis…
+                        </div>
+                    ) : (
+                        <div className="flex gap-1" style={{ flexWrap: "wrap", alignItems: "stretch" }}>
+                            <AnalysisFacilityTable title={LABEL_W2} rows={warehouse2Stock} borderColorVar="--primary" />
+                            <AnalysisFacilityTable title={LABEL_W3} rows={warehouse3Stock} borderColorVar="--accent" />
+                        </div>
+                    )}
                 </div>
             </div>
         </Layout>

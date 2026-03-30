@@ -2,6 +2,8 @@ import Layout from "../components/Layout";
 import { useState, useEffect } from "react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const UserPanel = () => {
   const { user } = useAuth();
@@ -9,6 +11,36 @@ const UserPanel = () => {
   const [stock, setStock] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const handleDownloadStockReport = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.setTextColor(12, 26, 61);
+    doc.text("Stock Details Report", 14, 18);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated at: ${new Date().toLocaleString()}`, 14, 26);
+
+    const rows = filteredStock.map((s) => [
+      s.product_name || "—",
+      s.product_sku || "—",
+      s.warehouse_name || "—",
+      s.shelf_code || "—",
+      String(Number(s.quantity ?? 0)),
+    ]);
+
+    autoTable(doc, {
+      startY: 34,
+      head: [["Product", "SKU", "Warehouse", "Shelf", "Qty"]],
+      body: rows,
+      theme: "grid",
+      headStyles: { fillColor: [12, 26, 61] },
+      styles: { fontSize: 8 },
+    });
+
+    doc.save(`Stock_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+  };
 
   useEffect(() => {
     const fetchStock = async () => {
@@ -37,6 +69,14 @@ const UserPanel = () => {
             <h1>Facility <span className="text-red">Inventory</span></h1>
             <p className="text-muted">Local stock levels and storage location records.</p>
           </div>
+          <div className="flex align-center gap-1" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button
+              className="secondary"
+              onClick={handleDownloadStockReport}
+              disabled={loading}
+            >
+              ⤓ Download Stock Report
+            </button>
           <div style={{ position: "relative", width: "300px" }}>
             <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}>🔍</span>
             <input
@@ -46,6 +86,7 @@ const UserPanel = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+          </div>
           </div>
         </header>
 

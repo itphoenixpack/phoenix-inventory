@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import api from "../api/axios";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
+import { isWarehouse2, isWarehouse3, stockRowKey } from "../utils/warehouse";
 
 const AdminStock = () => {
     const { user } = useAuth();
@@ -30,10 +31,10 @@ const AdminStock = () => {
         fetchStock();
     }, []);
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (item) => {
         if (!window.confirm("Remove this item from the warehouse registry?")) return;
         try {
-            await api.delete(`/stock/${id}`);
+            await api.delete(`/stock/${item.id}?source=${item.source || 'inventory'}`);
             fetchStock();
             toast.success("Stock record deleted successfully.");
         } catch (error) {
@@ -43,7 +44,7 @@ const AdminStock = () => {
 
     const handleEditClick = (item) => {
         setEditingItem(item);
-        setEditData({ quantity: item.quantity, shelf_code: item.shelf_code || "" });
+        setEditData({ quantity: item.quantity, shelf_code: item.shelf_code || "", source: item.source || 'inventory' });
     };
 
     const handleUpdate = async (e) => {
@@ -55,6 +56,7 @@ const AdminStock = () => {
             toast.success("Stock record updated successfully.");
         } catch (error) {
             toast.error("Failed to update stock record.");
+            console.error(error);
         }
     };
 
@@ -63,8 +65,8 @@ const AdminStock = () => {
         (item.product_sku?.toLowerCase() || "").includes(searchTerm.toLowerCase())
     );
 
-    const warehouse2Stock = filteredStock.filter(item => item.warehouse_name === "Warehouse 2");
-    const warehouse3Stock = filteredStock.filter(item => item.warehouse_name === "Warehouse 3");
+    const warehouse2Stock = filteredStock.filter(isWarehouse2);
+    const warehouse3Stock = filteredStock.filter(isWarehouse3);
 
     const StockTable = ({ data, warehouseName }) => (
         <div className="card mb-2" style={{ borderTop: `4px solid ${warehouseName === "Warehouse 2" ? "var(--primary)" : "var(--accent)"}` }}>
@@ -95,7 +97,7 @@ const AdminStock = () => {
                     <tbody>
                         {data.length > 0 ? (
                             data.map((item) => (
-                                <tr key={item.id}>
+                                <tr key={stockRowKey(item)}>
                                     <td style={{ fontWeight: 700 }}>{item.product_name}</td>
                                     <td><code style={{ background: "var(--bg-main)", padding: "0.25rem 0.5rem", borderRadius: "4px" }}>{item.product_sku || "N/A"}</code></td>
                                     <td style={{ fontWeight: 800, color: "var(--primary)" }}>{item.shelf_code || "—"}</td>
@@ -163,7 +165,7 @@ const AdminStock = () => {
                                                 </button>
                                                 <button
                                                     className="btn-sm"
-                                                    onClick={() => handleDelete(item.id)}
+                                                    onClick={() => handleDelete(item)}
                                                     style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", backgroundColor: "var(--accent)" }}
                                                 >
                                                     Delete
