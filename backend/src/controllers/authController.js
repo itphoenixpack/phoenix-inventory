@@ -41,16 +41,48 @@ const login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid password' });
     }
 
+    const u = user.rows[0];
+    const isFirstLogin = Number(u.login_count ?? 0) === 0;
+
+    try {
+      await pool.query(
+        'UPDATE users SET login_count = COALESCE(login_count, 0) + 1, last_login_at = NOW() WHERE id = $1',
+        [u.id]
+      );
+    } catch (e) {
+      // If columns don't exist yet, login should still succeed.
+    }
+
+    if (u.role === 'user' && isFirstLogin) {
+      const user_name = u.name || u.email || 'Unknown User';
+      const message = `New user login: ${user_name} (${u.email}) accessed the system for the first time.`;
+      try {
+        await pool.query(
+          'INSERT INTO notifications (message, user_name, type) VALUES ($1, $2, $3)',
+          [message, user_name, 'USER_ACCESS']
+        );
+      } catch (e) {
+        try {
+          await pool.query(
+            'INSERT INTO notifications (message, user_name) VALUES ($1, $2)',
+            [message, user_name]
+          );
+        } catch (e2) {
+          // If notifications schema differs, skip notifying but keep login working.
+        }
+      }
+    }
+
     const token = jwt.sign(
-      { id: user.rows[0].id, role: user.rows[0].role, name: user.rows[0].name },
+      { id: u.id, role: u.role, name: u.name },
       process.env.JWT_SECRET || 'secretkey',
       { expiresIn: '1d' }
     );
 
     res.json({
       token,
-      role: user.rows[0].role,
-      name: user.rows[0].name
+      role: u.role,
+      name: u.name
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

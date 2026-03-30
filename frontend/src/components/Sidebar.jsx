@@ -11,9 +11,12 @@ const Sidebar = () => {
         { path: "/admin", label: "Analytics", icon: "📊" },
         { path: "/admin/products", label: "Catalog", icon: "📦" },
         { path: "/admin/stock", label: "Inventory", icon: "🔄" },
+        { path: "/admin/stock/updates", label: "Updates", icon: "📥" },
+        { path: "/admin/users", label: "Users", icon: "👥" },
     ];
 
     const userLinks = [
+        { path: "/user/analytics", label: "Analytics", icon: "📊" },
         { path: "/user", label: "Warehouse", icon: "🏠" },
         { path: "/admin/products", label: "Catalog", icon: "📦" },
         { path: "/user/stock", label: "Updates", icon: "📥" },

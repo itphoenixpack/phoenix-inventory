@@ -109,7 +109,7 @@ const AdminProducts = () => {
                         <h1>Product <span className="text-red">Catalogue</span></h1>
                         <p className="text-muted">Maintain the central registry of all storable items.</p>
                     </div>
-                    {role === "admin" && (
+                    {(role === "admin" || role === "user") && (
                         <button onClick={() => setShowAddForm(!showAddForm)}>
                             {showAddForm ? "Back to Registry" : "+ New Catalogue Entry"}
                         </button>
@@ -210,7 +210,7 @@ const AdminProducts = () => {
                                             </td>
                                             <td className="text-muted" style={{ fontSize: "0.9rem" }}>{p.description || "No specifications provided."}</td>
                                             <td>
-                                                {role === "admin" && (
+                                                {(role === "admin" || role === "user") && (
                                                     <div className="flex gap-1 justify-end">
                                                         <button
                                                             className="secondary"
@@ -219,13 +219,15 @@ const AdminProducts = () => {
                                                         >
                                                             Edit
                                                         </button>
-                                                        <button
-                                                            className="secondary"
-                                                            onClick={() => handleDelete(p.id)}
-                                                            style={{ padding: "0.4rem 0.8rem", fontSize: "0.75rem", backgroundColor: "var(--accent)" }}
-                                                        >
-                                                            Delete
-                                                        </button>
+                                                        {role === "admin" && (
+                                                            <button
+                                                                className="secondary"
+                                                                onClick={() => handleDelete(p.id)}
+                                                                style={{ padding: "0.4rem 0.8rem", fontSize: "0.75rem", backgroundColor: "var(--accent)" }}
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </td>

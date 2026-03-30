@@ -6,6 +6,7 @@ import AdminStock from "../pages/AdminStock";
 import UserPanel from "../pages/UserPanel";
 import UpdateStock from "../pages/UpdateStock";
 import Register from "../pages/Register";
+import AdminUsers from "../pages/AdminUsers";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -66,9 +67,27 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } />
         
+        <Route path="/admin/users" element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminUsers />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/stock/updates" element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <UpdateStock />
+          </ProtectedRoute>
+        } />
+        
         <Route path="/user" element={
           <ProtectedRoute allowedRoles={["user", "admin"]}>
             <UserPanel />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/user/analytics" element={
+          <ProtectedRoute allowedRoles={["user", "admin"]}>
+            <AdminPanel />
           </ProtectedRoute>
         } />
         
