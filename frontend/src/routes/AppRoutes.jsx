@@ -16,7 +16,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (loading) return <div>Synchronizing Security...</div>;
   if (!user) return <Navigate to="/login" replace />;
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to={user.role === "admin" ? "/admin" : "/user"} replace />;
+    return <Navigate to={["admin", "super_admin"].includes(user.role) ? "/admin" : "/user"} replace />;
   }
   
   return children;
@@ -26,7 +26,7 @@ const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   
   if (loading) return <div>Initializing...</div>;
-  if (user) return <Navigate to={user.role === "admin" ? "/admin" : "/user"} replace />;
+  if (user) return <Navigate to={["admin", "super_admin"].includes(user.role) ? "/admin" : "/user"} replace />;
   
   return children;
 };
@@ -50,49 +50,49 @@ const AppRoutes = () => {
         } />
 
         <Route path="/admin" element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
             <AdminPanel />
           </ProtectedRoute>
         } />
         
         <Route path="/admin/products" element={
-          <ProtectedRoute allowedRoles={["admin", "user"]}>
+          <ProtectedRoute allowedRoles={["admin", "super_admin", "user"]}>
             <AdminProducts />
           </ProtectedRoute>
         } />
         
         <Route path="/admin/stock" element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
             <AdminStock />
           </ProtectedRoute>
         } />
         
         <Route path="/admin/users" element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
             <AdminUsers />
           </ProtectedRoute>
         } />
 
         <Route path="/admin/stock/updates" element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
             <UpdateStock />
           </ProtectedRoute>
         } />
         
         <Route path="/user" element={
-          <ProtectedRoute allowedRoles={["user", "admin"]}>
+          <ProtectedRoute allowedRoles={["user", "admin", "super_admin"]}>
             <UserPanel />
           </ProtectedRoute>
         } />
 
         <Route path="/user/analytics" element={
-          <ProtectedRoute allowedRoles={["user", "admin"]}>
+          <ProtectedRoute allowedRoles={["user", "admin", "super_admin"]}>
             <AdminPanel />
           </ProtectedRoute>
         } />
         
         <Route path="/user/stock" element={
-          <ProtectedRoute allowedRoles={["user", "admin"]}>
+          <ProtectedRoute allowedRoles={["user", "admin", "super_admin"]}>
             <UpdateStock />
           </ProtectedRoute>
         } />

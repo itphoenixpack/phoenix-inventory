@@ -15,7 +15,7 @@ const AdminPanel = () => {
     const [stock, setStock] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [message, setMessage] = useState({ type: "", text: "" });
+    const [message] = useState({ type: "", text: "" });
 
     const fetchData = async () => {
         setLoading(true);
@@ -63,24 +63,23 @@ const AdminPanel = () => {
                 fontWeight: 800,
                 backgroundColor:
                     q === 0 ? "rgba(225, 29, 72, 0.2)" :
-                    q < 10 ? "rgba(225, 29, 72, 0.1)" :
-                    q < 20 ? "rgba(234, 179, 8, 0.1)" :
-                    "rgba(16, 185, 129, 0.1)",
+                        q < 10 ? "rgba(225, 29, 72, 0.1)" :
+                            q < 20 ? "rgba(234, 179, 8, 0.1)" :
+                                "rgba(16, 185, 129, 0.1)",
                 color:
                     q === 0 ? "#ff0000" :
-                    q < 10 ? "var(--accent)" :
-                    q < 20 ? "var(--warning)" :
-                    "var(--success)",
-                border: `1px solid ${
-                    q === 0 ? "#ff0000" :
-                    q < 10 ? "var(--accent)" :
-                    q < 20 ? "var(--warning)" :
-                    "var(--success)"
-                }`
+                        q < 10 ? "var(--accent)" :
+                            q < 20 ? "var(--warning)" :
+                                "var(--success)",
+                border: `1px solid ${q === 0 ? "#ff0000" :
+                        q < 10 ? "var(--accent)" :
+                            q < 20 ? "var(--warning)" :
+                                "var(--success)"
+                    }`
             }}>
                 {q === 0 ? "OUT OF STOCK" :
-                 q < 10 ? "REPLENISH" :
-                 q < 20 ? "LOW" : "OPTIMAL"}
+                    q < 10 ? "REPLENISH" :
+                        q < 20 ? "LOW" : "OPTIMAL"}
             </span>
         );
     };
@@ -137,32 +136,35 @@ const AdminPanel = () => {
 
     const handleDownloadReport = async () => {
         const toastId = toast.loading("Assembling Intelligence Report...");
+        const company = (localStorage.getItem("company") || "phoenix").toLowerCase();
+        const companyLabel = company === 'inpack' ? 'Inpack Inventory' : 'Phoenix Stocks';
+
         try {
             const notifRes = await api.get("/notifications");
             const notifications = Array.isArray(notifRes.data) ? notifRes.data : [];
 
             const doc = new jsPDF();
-            
+
             // Header
             doc.setFontSize(22);
             doc.setTextColor(12, 26, 61);
-            doc.text("Phoenix Systems - Executive Report", 14, 22);
-            
+            doc.text(`${companyLabel} - Executive Report`, 14, 22);
+
             doc.setFontSize(10);
             doc.setTextColor(100);
             doc.text(`Generated exactly at: ${new Date().toLocaleString()}`, 14, 30);
-            
+
             // Section 1: Operations
             doc.setFontSize(14);
             doc.setTextColor(225, 29, 72);
             doc.text("1. Recent Organizational Operations", 14, 42);
-            
+
             const activityData = notifications.map(notif => [
                 new Date(notif.created_at).toLocaleString(),
                 notif.user_name || "System",
                 notif.message
             ]);
-            
+
             autoTable(doc, {
                 startY: 48,
                 head: [["Timestamp", "Operator ID", "Operation Details"]],
@@ -175,11 +177,11 @@ const AdminPanel = () => {
 
             // Section 2: Stock
             const finalY = doc.lastAutoTable?.finalY || 48;
-            
+
             doc.setFontSize(14);
             doc.setTextColor(12, 26, 61);
             doc.text("2. Global Stock Registry Status", 14, finalY + 14);
-            
+
             const stockData = stock.map(s => {
                 const qty = Number(s.quantity ?? 0);
                 return [
@@ -191,7 +193,7 @@ const AdminPanel = () => {
                     qty === 0 ? "OUT OF STOCK" : qty < 20 ? "LOW STOCK" : "OPTIMAL"
                 ];
             });
-            
+
             autoTable(doc, {
                 startY: finalY + 20,
                 head: [["Item", "SKU", "Warehouse", "Shelf", "Units", "Condition"]],
@@ -200,8 +202,8 @@ const AdminPanel = () => {
                 headStyles: { fillColor: [12, 26, 61] },
                 styles: { fontSize: 8 }
             });
-            
-            doc.save(`Phoenix_Executive_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+
+            doc.save(`${companyLabel.replace(' ', '_')}_Executive_Report_${new Date().toISOString().split('T')[0]}.pdf`);
             toast.success("Intelligence Report securely acquired.", { id: toastId });
         } catch (error) {
             console.error("PDF Export Error:", error);
@@ -214,20 +216,19 @@ const AdminPanel = () => {
             <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
                 <header className="flex justify-between align-center mb-2" style={{ flexWrap: "wrap", gap: "1rem" }}>
                     <div>
-                        <h1>Executive <span className="text-red">Overview</span></h1>
-                        <p className="text-muted">Real-time intelligence across all warehouses and products.</p>
+                        <h1>Dashboard <span className="text-accent">Overview</span></h1>
+                        <p className="text-muted">Real-time stats across all warehouses and products.</p>
                     </div>
-                    {role === "admin" && (
-                        <button onClick={handleDownloadReport} style={{
-                            backgroundColor: "var(--accent)",
-                            padding: "0.75rem 1.5rem",
-                            fontWeight: "800",
-                            letterSpacing: "0.5px",
-                            boxShadow: "0 4px 15px rgba(225, 29, 72, 0.3)"
-                        }}>
-                            ⤓ Download Report
-                        </button>
-                    )}
+                    <button onClick={handleDownloadReport} style={{
+                        backgroundColor: "var(--accent)",
+                        padding: "0.75rem 1.75rem",
+                        fontWeight: "900",
+                        letterSpacing: "1px",
+                        boxShadow: "0 8px 25px rgba(225, 29, 72, 0.3)",
+                        fontSize: "0.75rem"
+                    }}>
+                        ⤓ PDF REPORT
+                    </button>
                 </header>
 
                 {message.text && (

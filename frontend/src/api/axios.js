@@ -6,9 +6,11 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
+  const company = (localStorage.getItem("company") || "phoenix").toLowerCase();
   if (token) {
     config.headers.Authorization = token;
   }
+  config.headers["x-company"] = company;
   return config;
 });
 
@@ -20,6 +22,7 @@ api.interceptors.response.use(
       localStorage.removeItem("token");
       localStorage.removeItem("role");
       localStorage.removeItem("name");
+      localStorage.removeItem("company");
       window.location.href = "/login";
     }
     return Promise.reject(error);

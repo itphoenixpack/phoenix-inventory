@@ -1,11 +1,9 @@
-const pool = require('../config/db');
-
 // ADD STOCK
 const addStock = async (req, res) => {
   const { product_id, warehouse_id, quantity, shelf_code } = req.body;
 
   try {
-    const existing = await pool.query(
+    const existing = await req.db.query(
       'SELECT * FROM inventory WHERE product_id=$1 AND warehouse_id=$2',
       [product_id, warehouse_id]
     );
@@ -13,25 +11,25 @@ const addStock = async (req, res) => {
     let result;
 
     if (existing.rows.length > 0) {
-      result = await pool.query(
+      result = await req.db.query(
         'UPDATE inventory SET quantity = quantity + $1 WHERE id=$2 RETURNING *',
         [quantity, existing.rows[0].id]
       );
     } else {
-      result = await pool.query(
+      result = await req.db.query(
         'INSERT INTO inventory (product_id, warehouse_id, quantity, shelf_code) VALUES ($1,$2,$3,$4) RETURNING *',
         [product_id, warehouse_id, quantity, shelf_code]
       );
     }
 
     // Fetch product name
-    const prodRes = await pool.query('SELECT name FROM products WHERE id = $1', [product_id]);
+    const prodRes = await req.db.query('SELECT name FROM products WHERE id = $1', [product_id]);
     const productName = prodRes.rows.length > 0 ? prodRes.rows[0].name : product_id;
 
     // Notification trigger
     const user_name = req.user?.name || "System";
     const notificationMessage = `Stock ADDED: ${quantity} units to ${productName} in warehouse ${warehouse_id} by ${user_name}`;
-    await pool.query(
+    await req.db.query(
       'INSERT INTO notifications (message, user_name) VALUES ($1, $2)',
       [notificationMessage, user_name]
     );
@@ -47,7 +45,7 @@ const removeStock = async (req, res) => {
   const { product_id, warehouse_id, quantity, shelf_code } = req.body;
 
   try {
-    const existing = await pool.query(
+    const existing = await req.db.query(
       'SELECT * FROM inventory WHERE product_id=$1 AND warehouse_id=$2',
       [product_id, warehouse_id]
     );
@@ -60,19 +58,19 @@ const removeStock = async (req, res) => {
       return res.status(400).json({ message: 'Not enough stock' });
     }
 
-    const updated = await pool.query(
+    const updated = await req.db.query(
       'UPDATE inventory SET quantity = quantity - $1 WHERE id=$2 RETURNING *',
       [quantity, existing.rows[0].id]
     );
 
     // Fetch product name
-    const prodRes = await pool.query('SELECT name FROM products WHERE id = $1', [product_id]);
+    const prodRes = await req.db.query('SELECT name FROM products WHERE id = $1', [product_id]);
     const productName = prodRes.rows.length > 0 ? prodRes.rows[0].name : product_id;
 
     // Notification trigger
     const user_name = req.user?.name || "System";
     const notificationMessage = `Stock REMOVED: ${quantity} units from ${productName} in warehouse ${warehouse_id} by ${user_name}`;
-    await pool.query(
+    await req.db.query(
       'INSERT INTO notifications (message, user_name) VALUES ($1, $2)',
       [notificationMessage, user_name]
     );
@@ -90,7 +88,7 @@ const getStock = async (req, res) => {
   try {
     let inventoryRows = [];
     try {
-      const inv = await pool.query(
+      const inv = await req.db.query(
         `SELECT i.id, i.product_id, p.name AS product_name, p.sku AS product_sku,
                 w.id AS warehouse_id, w.name AS warehouse_name, i.quantity, i.shelf_code,
                 'inventory' AS source
@@ -105,7 +103,7 @@ const getStock = async (req, res) => {
 
     let legacyRows = [];
     try {
-      const leg = await pool.query(
+      const leg = await req.db.query(
         `SELECT s.id, s.product_id,
                 p.name AS product_name, p.sku AS product_sku,
                 w.id AS warehouse_id,
@@ -150,14 +148,14 @@ const updateStockItem = async (req, res) => {
 
     if (source === 'stock') {
       // Legacy stock table
-      result = await pool.query(
+      result = await req.db.query(
         'UPDATE stock SET quantity = $1, shelf_code = $2 WHERE id = $3 RETURNING *',
         [quantity, shelf_code, id]
       );
       productId = result.rows[0]?.product_id;
     } else {
       // Primary inventory table
-      result = await pool.query(
+      result = await req.db.query(
         'UPDATE inventory SET quantity = $1, shelf_code = $2 WHERE id = $3 RETURNING *',
         [quantity, shelf_code, id]
       );
@@ -168,12 +166,12 @@ const updateStockItem = async (req, res) => {
       return res.status(404).json({ message: 'Stock record not found' });
     }
 
-    const prodRes = await pool.query('SELECT name FROM products WHERE id = $1', [productId]);
+    const prodRes = await req.db.query('SELECT name FROM products WHERE id = $1', [productId]);
     const productName = prodRes.rows.length > 0 ? prodRes.rows[0].name : `Record ID ${id}`;
 
     const user_name = req.user?.name || "System";
     const notificationMessage = `Stock ADJUSTED: ${productName} set to ${quantity} units by ${user_name}`;
-    await pool.query(
+    await req.db.query(
       'INSERT INTO notifications (message, user_name) VALUES ($1, $2)',
       [notificationMessage, user_name]
     );
@@ -192,9 +190,9 @@ const deleteStockItem = async (req, res) => {
   try {
     let result;
     if (source === 'stock') {
-      result = await pool.query('DELETE FROM stock WHERE id = $1 RETURNING *', [id]);
+      result = await req.db.query('DELETE FROM stock WHERE id = $1 RETURNING *', [id]);
     } else {
-      result = await pool.query('DELETE FROM inventory WHERE id = $1 RETURNING *', [id]);
+      result = await req.db.query('DELETE FROM inventory WHERE id = $1 RETURNING *', [id]);
     }
 
     if (result.rows.length === 0) {

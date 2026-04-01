@@ -1,32 +1,31 @@
-const { Pool } = require('pg');
+const { getDB, normalizeCompany, pools } = require('./src/config/dbManager');
+require('dotenv').config();
 
-const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'inventory_system',
-    password: 'root',
-    port: 5432,
-});
+async function runDiagnostics() {
+    console.log('--- BACKEND DIAGNOSTIC PROTOCOL ---');
+    console.log(`Environment: ${process.env.NODE_ENV || 'Not Set'}`);
+    console.log(`Port Configured: ${process.env.PORT || 5000}`);
 
-async function diagnostic() {
-    try {
-        console.log("Checking warehouses...");
-        const warehouses = await pool.query('SELECT * FROM warehouses');
-        console.log("Warehouses in DB:", warehouses.rows);
+    const diagnosticGoals = [
+        { name: 'Phoenix DB Connection', pool: pools.phoenixPool },
+        { name: 'Impack DB Connection', pool: pools.impackPool }
+    ];
 
-        console.log("\nChecking inventory schema...");
-        const schema = await pool.query(`
-      SELECT column_name, data_type, is_nullable
-      FROM information_schema.columns
-      WHERE table_name = 'inventory'
-    `);
-        console.log("Inventory Columns:", schema.rows);
-
-        await pool.end();
-    } catch (err) {
-        console.error("Diagnostic failed:", err);
-        process.exit(1);
+    for (const goal of diagnosticGoals) {
+        try {
+            console.log(`Checking ${goal.name}...`);
+            const client = await goal.pool.connect();
+            console.log(`✓ ${goal.name} Established.`);
+            const res = await client.query('SELECT NOW()');
+            console.log(`  - DB Current Time: ${res.rows[0].now}`);
+            client.release();
+        } catch (err) {
+            console.error(`✗ ${goal.name} FAILED.`);
+            console.error(`  - Reason: ${err.message}`);
+        }
     }
+
+    console.log('--- DIAGNOSTICS COMPLETE ---');
 }
 
-diagnostic();
+runDiagnostics().then(() => process.exit(0));

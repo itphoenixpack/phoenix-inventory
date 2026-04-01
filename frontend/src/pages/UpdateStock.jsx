@@ -4,8 +4,7 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
 const UpdateStock = () => {
-    const { user } = useAuth();
-    const role = user?.role;
+    useAuth();
     const [products, setProducts] = useState([]);
     const [warehouses] = useState([
         { id: 1, name: "Warehouse 2" },
@@ -64,21 +63,21 @@ const UpdateStock = () => {
         <Layout>
             <div style={{ maxWidth: "900px", margin: "0 auto" }}>
                 <header className="mb-2">
-                    <h1>Inventory <span className="text-red">Transaction</span></h1>
-                    <p className="text-muted">Execute and record physical stock movement across logistics nodes.</p>
+                    <h1>Inventory <span className="text-accent">Transaction</span></h1>
+                    <p className="text-muted">Execute and record physical stock movement across inventory nodes.</p>
                 </header>
 
                 {message.text && (
                     <div className="card mb-2" style={{
-                        backgroundColor: message.type === "success" ? "rgba(16, 185, 129, 0.1)" : "rgba(225, 29, 72, 0.1)",
-                        borderColor: message.type === "success" ? "var(--success)" : "var(--accent)",
-                        color: message.type === "success" ? "var(--success)" : "var(--accent)"
+                        backgroundColor: message.type === "success" ? "rgba(245, 158, 11, 0.12)" : "rgba(225, 29, 72, 0.1)",
+                        borderColor: "var(--accent)",
+                        color: message.type === "success" ? "var(--text-main)" : "var(--accent)"
                     }}>
                         {message.text}
                     </div>
                 )}
 
-                <div className="card" style={{ borderTop: "4px solid var(--primary)" }}>
+                <div className="card" style={{ borderTop: "4px solid var(--accent)" }}>
                     <h2 className="mb-2">Movement Manifest</h2>
                     <div className="flex flex-column gap-1">
                         <div>

@@ -6,21 +6,23 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const UserPanel = () => {
-  const { user } = useAuth();
-  const role = user?.role;
+  useAuth();
   const [stock, setStock] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleDownloadStockReport = () => {
     const doc = new jsPDF();
-    doc.setFontSize(18);
+    const company = (localStorage.getItem("company") || "phoenix").toLowerCase();
+    const companyLabel = company === 'inpack' ? 'Inpack' : 'Phoenix';
+
+    doc.setFontSize(22);
     doc.setTextColor(12, 26, 61);
-    doc.text("Stock Details Report", 14, 18);
+    doc.text(`${companyLabel} Inventory Report`, 14, 20);
 
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Generated at: ${new Date().toLocaleString()}`, 14, 26);
+    doc.text(`Node Report Generated: ${new Date().toLocaleString()}`, 14, 28);
 
     const rows = filteredStock.map((s) => [
       s.product_name || "—",
@@ -31,15 +33,33 @@ const UserPanel = () => {
     ]);
 
     autoTable(doc, {
-      startY: 34,
-      head: [["Product", "SKU", "Warehouse", "Shelf", "Qty"]],
+      startY: 35,
+      head: [["Product", "Reference SKU", "Facility Node", "Storage Pin", "Unit Count"]],
       body: rows,
       theme: "grid",
       headStyles: { fillColor: [12, 26, 61] },
       styles: { fontSize: 8 },
     });
 
-    doc.save(`Stock_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+    doc.save(`${companyLabel}_Stock_Node_${new Date().toISOString().split("T")[0]}.pdf`);
+  };
+
+  const handleExportCSV = () => {
+    try {
+        const headers = ["Product Name,SKU,Warehouse,Shelf,Quantity,Status"];
+        const rows = filteredStock.map(s => 
+            `"${s.product_name}","${s.product_sku}","${s.warehouse_name}","${s.shelf_code}",${s.quantity},${Number(s.quantity) < 20 ? 'LOW' : 'OPTIMAL'}`
+        );
+        const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Node_Dataset_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+    } catch (err) {
+        console.error(err);
+    }
   };
 
   useEffect(() => {
@@ -64,71 +84,65 @@ const UserPanel = () => {
   return (
     <Layout>
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        <header className="flex justify-between align-center mb-2" style={{ flexWrap: "wrap", gap: "1rem" }}>
+        <header className="flex justify-between align-center mb-3" style={{ flexWrap: "wrap", gap: "1.5rem" }}>
           <div>
-            <h1>Facility <span className="text-red">Inventory</span></h1>
-            <p className="text-muted">Local stock levels and storage location records.</p>
+            <h1 style={{ letterSpacing: "-1.5px" }}>Facility <span className="text-accent">Inventory</span></h1>
+            <p className="text-muted" style={{ fontWeight: 600, fontSize: "0.8rem", letterSpacing: "1px" }}>LOCAL FACILITY STOCK OVERVIEW</p>
           </div>
-          <div className="flex align-center gap-1" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <button
-              className="secondary"
-              onClick={handleDownloadStockReport}
-              disabled={loading}
-            >
-              ⤓ Download Stock Report
-            </button>
-          <div style={{ position: "relative", width: "300px" }}>
-            <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}>🔍</span>
-            <input
-              type="text"
-              placeholder="Filter items..."
-              style={{ paddingLeft: "36px" }}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          
+          <div className="flex align-center gap-1" style={{ flexWrap: "wrap" }}>
+            <button onClick={handleDownloadStockReport} className="secondary" style={{ height: "3.5rem", padding: "0 1.5rem", fontWeight: 800, fontSize: "0.75rem", letterSpacing: "1px" }}>⤓ PDF REPORT</button>
+            <button onClick={handleExportCSV} className="secondary" style={{ height: "3.5rem", padding: "0 1.5rem", fontWeight: 800, fontSize: "0.75rem", letterSpacing: "1px", color: "var(--accent)" }}>📈 CSV EXPORT</button>
+            <div style={{ position: "relative", width: "240px" }}>
+              <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", opacity: 0.5 }}>🔍</span>
+              <input
+                type="text"
+                placeholder="Filter node cache..."
+                style={{ paddingLeft: "42px", height: "3.5rem", borderRadius: "12px", fontSize: "0.9rem" }}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
         </header>
 
-        <div className="card">
-          <div className="flex justify-between align-center mb-2">
-            <h2>Inventory Insight</h2>
-            <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-muted)" }}>
-              {filteredStock.length} MATCHING ITEMS
-            </div>
+        <div className="card glass-card" style={{ padding: 0, borderRadius: "16px", overflow: "hidden" }}>
+          <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <h2 style={{ fontSize: "1.1rem", margin: 0 }}>Current Stock</h2>
+            <p className="text-muted" style={{ fontSize: "0.75rem", fontWeight: 600, marginTop: "0.25rem" }}>{filteredStock.length} MATCHING ITEMS IN LOCAL CACHE</p>
           </div>
 
           <div style={{ overflowX: "auto" }}>
-            <table>
-              <thead>
+            <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+              <thead style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
                 <tr>
-                  <th>Product Identification</th>
-                  <th>Internal SKU</th>
-                  <th>Storage Node</th>
-                   <th>Shelf Ref</th>
-                  <th>Current Qty</th>
-                  <th>Status</th>
+                  <th style={{ padding: "1.25rem 2rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>ASSET IDENTIFICATION</th>
+                  <th style={{ padding: "1.25rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>INTERNAL SKU</th>
+                  <th style={{ padding: "1.25rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>STORAGE NODE</th>
+                  <th style={{ padding: "1.25rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>STORAGE PIN</th>
+                  <th style={{ padding: "1.25rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>QTY</th>
+                  <th style={{ padding: "1.25rem 2rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>STATUS</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr><td colSpan="6" style={{ textAlign: "center", padding: "4rem" }}>
-                    <div className="text-muted">Loading local registry...</div>
+                    <div className="text-muted" style={{ fontWeight: 800, letterSpacing: "2px" }}>LOADING STOCK...</div>
                   </td></tr>
                 ) : filteredStock.length > 0 ? (
                   filteredStock.map((item) => (
                     <tr key={item.id}>
-                      <td style={{ fontWeight: 800 }}>{item.product_name}</td>
-                      <td><code style={{ background: "var(--bg-main)", padding: "0.25rem 0.5rem", borderRadius: "4px" }}>{item.product_sku}</code></td>
-                      <td style={{ fontWeight: 600 }}>{item.warehouse_name}</td>
-                      <td style={{ fontWeight: 800, color: "var(--primary)" }}>{item.shelf_code || "—"}</td>
-                      <td style={{ fontWeight: 800, fontSize: "1.05rem" }}>{item.quantity}</td>
-                      <td>
+                      <td style={{ padding: "1.25rem 2rem", fontWeight: 800 }}>{item.product_name}</td>
+                      <td style={{ padding: "1.25rem" }}><code style={{ background: "rgba(255,255,255,0.05)", padding: "0.25rem 0.5rem", borderRadius: "4px", fontSize: "0.8rem" }}>{item.product_sku}</code></td>
+                      <td style={{ padding: "1.25rem", fontWeight: 600 }}>{item.warehouse_name}</td>
+                      <td style={{ padding: "1.25rem", fontWeight: 800, color: "var(--primary)" }}>{item.shelf_code || "—"}</td>
+                      <td style={{ padding: "1.25rem", fontWeight: 900, fontSize: "1.1rem" }}>{item.quantity}</td>
+                      <td style={{ padding: "1.25rem 2rem" }}>
                         <span style={{
-                          padding: "0.3rem 0.6rem",
+                          padding: "0.3rem 0.8rem",
                           borderRadius: "15px",
-                          fontSize: "0.65rem",
-                          fontWeight: 800,
+                          fontSize: "0.6rem",
+                          fontWeight: 900,
                           backgroundColor: 
                             item.quantity === 0 ? "rgba(225, 29, 72, 0.2)" :
                             item.quantity < 10 ? "rgba(225, 29, 72, 0.1)" :
@@ -155,7 +169,7 @@ const UserPanel = () => {
                   ))
                 ) : (
                   <tr><td colSpan="6" style={{ textAlign: "center", padding: "4rem" }}>
-                    <div className="text-muted">Target inventory not found.</div>
+                    <div className="text-muted" style={{ fontWeight: 800, letterSpacing: "1px" }}>TARGET INVENTORY NOT FOUND.</div>
                   </td></tr>
                 )}
               </tbody>
