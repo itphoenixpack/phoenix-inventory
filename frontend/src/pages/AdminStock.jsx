@@ -4,6 +4,8 @@ import api from "../api/axios";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { isWarehouse2, isWarehouse3, stockRowKey } from "../utils/warehouse";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const AdminStock = () => {
     const { user } = useAuth();
@@ -20,16 +22,14 @@ const AdminStock = () => {
         try {
             const res = await api.get("/stock");
             setStock(res.data);
-        } catch (error) {
-            console.error("Error fetching stock:", error);
+        } catch (err) {
+            console.error("Error fetching stock:", err);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchStock();
-    }, []);
+    useEffect(() => { fetchStock(); }, []);
 
     const handleDelete = async (item) => {
         if (!window.confirm("Remove this item from the warehouse registry?")) return;
@@ -37,7 +37,7 @@ const AdminStock = () => {
             await api.delete(`/stock/${item.id}?source=${item.source || 'inventory'}`);
             fetchStock();
             toast.success("Stock record deleted successfully.");
-        } catch (error) {
+        } catch (err) {
             toast.error("Failed to delete stock record.");
         }
     };
@@ -54,10 +54,84 @@ const AdminStock = () => {
             setEditingItem(null);
             fetchStock();
             toast.success("Stock record updated successfully.");
-        } catch (error) {
+        } catch (err) {
             toast.error("Failed to update stock record.");
-            console.error(error);
         }
+    };
+
+    const handleDownloadReport = () => {
+        const toastId = toast.loading("Synthesizing Stock Report...");
+        try {
+            const doc = new jsPDF();
+            const company = (localStorage.getItem("company") || "phoenix").toLowerCase();
+            const companyLabel = company === 'inpack' ? 'Inpack Inventory' : 'Phoenix Stocks';
+
+            doc.setFontSize(20);
+            doc.setTextColor(12, 26, 61);
+            doc.text(`${companyLabel} - Global Asset Registry`, 14, 20);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Report Period: ${new Date().toLocaleString()}`, 14, 28);
+
+            const tableRows = filteredStock.map(s => [
+                s.product_name || "—",
+                s.product_sku || "N/A",
+                s.warehouse_name || "—",
+                s.shelf_code || "—",
+                s.quantity ?? 0,
+                Number(s.quantity ?? 0) < 20 ? "LOW STOCK" : "OPTIMAL"
+            ]);
+
+            autoTable(doc, {
+                startY: 35,
+                head: [["Product Identity", "Reference SKU", "Node", "Location", "Qty", "Condition"]],
+                body: tableRows,
+                theme: 'grid',
+                headStyles: { fillColor: [29, 71, 155] },
+                styles: { fontSize: 8 }
+            });
+
+            doc.save(`Global_Stock_${new Date().toISOString().split('T')[0]}.pdf`);
+            toast.success("PDF Intelligence Report Downloaded.", { id: toastId });
+        } catch (err) {
+            toast.error("PDF generation failed.", { id: toastId });
+        }
+    };
+
+    const handleExportCSV = () => {
+        try {
+            const headers = ["Product Name,SKU,Warehouse,Shelf,Quantity,Status"];
+            const rows = filteredStock.map(s => 
+                `"${s.product_name}","${s.product_sku}","${s.warehouse_name}","${s.shelf_code}",${s.quantity},${Number(s.quantity) < 20 ? 'LOW' : 'OPTIMAL'}`
+            );
+            const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows).join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Inventory_Export_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            toast.success("CSV Dataset Exported.");
+        } catch (err) {
+            toast.error("CSV export failed.");
+        }
+    };
+
+    const StatusPill = ({ qty }) => {
+        const q = Number(qty);
+        const configs = {
+            out: { label: "OUT", bg: "rgba(225, 29, 72, 0.1)", color: "#ff0000", border: "#ff0000" },
+            low: { label: "LOW", bg: "rgba(234, 179, 8, 0.1)", color: "var(--warning)", border: "var(--warning)" },
+            optimal: { label: "OPTIMAL", bg: "rgba(16, 185, 129, 0.1)", color: "var(--success)", border: "var(--success)" }
+        };
+        const config = q === 0 ? configs.out : q < 20 ? configs.low : configs.optimal;
+        return (
+            <span style={{
+                padding: "0.25rem 0.6rem", borderRadius: "15px", fontSize: "0.6rem", fontWeight: 800,
+                backgroundColor: config.bg, color: config.color, border: `1px solid ${config.border}`
+            }}>{config.label}</span>
+        );
     };
 
     const filteredStock = stock.filter(item =>
@@ -69,118 +143,53 @@ const AdminStock = () => {
     const warehouse3Stock = filteredStock.filter(isWarehouse3);
 
     const StockTable = ({ data, warehouseName }) => (
-        <div className="card mb-2" style={{ borderTop: `4px solid ${warehouseName === "Warehouse 2" ? "var(--primary)" : "var(--accent)"}` }}>
-            <div className="flex justify-between align-center mb-2">
-                <h2>{warehouseName} <span className="text-muted" style={{ fontSize: "1rem", fontWeight: 400 }}>— Assets Registry</span></h2>
-                <span style={{
-                    fontSize: "0.85rem",
-                    fontWeight: 700,
-                    color: "white",
-                    background: "var(--primary)",
-                    padding: "0.25rem 0.75rem",
-                    borderRadius: "20px"
-                }}>
-                    {data.length} LINE ITEMS
-                </span>
+        <div className="card glass-card" style={{ padding: 0, marginBottom: "2rem", borderTop: `4px solid ${warehouseName === "Warehouse 2" ? "var(--primary)" : "var(--accent)"}` }}>
+            <div className="flex justify-between align-center" style={{ padding: "1.25rem 2rem", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <h2 style={{ fontSize: "1.1rem", letterSpacing: "-0.5px" }}>{warehouseName} <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", fontWeight: 400 }}>— Node Asset Registry</span></h2>
+                <span style={{ fontSize: "0.65rem", fontWeight: 900, color: "white", background: "rgba(255,255,255,0.15)", padding: "0.3rem 0.8rem", borderRadius: "20px", letterSpacing: "1px" }}>{data.length} LINE ITEMS</span>
             </div>
             <div style={{ overflowX: "auto" }}>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Product Detail</th>
-                            <th>Reference SKU</th>
-                            <th>Storage Code</th>
-                            <th>Current Level</th>
-                            <th style={{ textAlign: "right" }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {data.length > 0 ? (
-                            data.map((item) => (
-                                <tr key={stockRowKey(item)}>
-                                    <td style={{ fontWeight: 700 }}>{item.product_name}</td>
-                                    <td><code style={{ background: "var(--bg-main)", padding: "0.25rem 0.5rem", borderRadius: "4px" }}>{item.product_sku || "N/A"}</code></td>
-                                    <td style={{ fontWeight: 800, color: "var(--primary)" }}>{item.shelf_code || "—"}</td>
-                                    <td>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                                                    <span style={{ fontWeight: 800, fontSize: "1.1rem" }}>{item.quantity}</span>
-                                                    <div style={{
-                                                        width: "100px",
-                                                        height: "6px",
-                                                        background: "var(--bg-main)",
-                                                        borderRadius: "3px",
-                                                        overflow: "hidden"
-                                                    }}>
-                                                        <div style={{
-                                                            width: `${Math.min((item.quantity / 100) * 100, 100)}%`,
-                                                            height: "100%",
-                                                            background: 
-                                                                item.quantity === 0 ? "#ff0000" :
-                                                                item.quantity < 10 ? "var(--accent)" :
-                                                                item.quantity < 20 ? "var(--warning)" : 
-                                                                "var(--success)"
-                                                        }} />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <span style={{
-                                                padding: "0.3rem 0.6rem",
-                                                borderRadius: "15px",
-                                                fontSize: "0.65rem",
-                                                fontWeight: 800,
-                                                backgroundColor: 
-                                                    item.quantity === 0 ? "rgba(225, 29, 72, 0.2)" :
-                                                    item.quantity < 10 ? "rgba(225, 29, 72, 0.1)" :
-                                                    item.quantity < 20 ? "rgba(234, 179, 8, 0.1)" : 
-                                                    "rgba(16, 185, 129, 0.1)",
-                                                color: 
-                                                    item.quantity === 0 ? "#ff0000" :
-                                                    item.quantity < 10 ? "var(--accent)" :
-                                                    item.quantity < 20 ? "var(--warning)" : 
-                                                    "var(--success)",
-                                                border: `1px solid ${
-                                                    item.quantity === 0 ? "#ff0000" :
-                                                    item.quantity < 10 ? "var(--accent)" :
-                                                    item.quantity < 20 ? "var(--warning)" : 
-                                                    "var(--success)"
-                                                }`
-                                            }}>
-                                                {item.quantity === 0 ? "OUT" :
-                                                 item.quantity < 10 ? "REPLENISH" :
-                                                 item.quantity < 20 ? "LOW" : "OPTIMAL"}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td style={{ textAlign: "right" }}>
-                                        {role === "admin" && (
-                                            <div className="flex justify-end gap-1">
-                                                <button
-                                                    className="btn-sm"
-                                                    onClick={() => handleEditClick(item)}
-                                                    style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    className="btn-sm"
-                                                    onClick={() => handleDelete(item)}
-                                                    style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", backgroundColor: "var(--accent)" }}
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr><td colSpan="5" style={{ textAlign: "center", padding: "3rem" }}>
-                                <div className="text-muted">Empty inventory for this facility.</div>
-                            </td></tr>
-                        )}
-                    </tbody>
+                <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+                  <thead style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                    <tr>
+                      <th style={{ padding: "1.25rem 2rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>CORE ASSET</th>
+                      <th style={{ padding: "1.25rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>REFERENCE SKU</th>
+                      <th style={{ padding: "1.25rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>LOCATION</th>
+                      <th style={{ padding: "1.25rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>STOCK LEVEL</th>
+                      <th style={{ padding: "1.25rem 2rem", textAlign: "right" }}>CONTROL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.map(item => (
+                      <tr key={stockRowKey(item)}>
+                        <td style={{ padding: "1.25rem 2rem", fontWeight: 800 }}>{item.product_name}</td>
+                        <td style={{ padding: "1.25rem" }}><code style={{ background: "rgba(255,255,255,0.05)", padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.75rem" }}>{item.product_sku || "N/A"}</code></td>
+                        <td style={{ padding: "1.25rem", fontWeight: 700, color: "var(--primary)" }}>{item.shelf_code || "—"}</td>
+                        <td style={{ padding: "1.25rem" }}>
+                          <div className="flex align-center gap-1">
+                            <span style={{ fontWeight: 900, minWidth: "30px" }}>{item.quantity}</span>
+                            <div style={{ width: "80px", height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden" }}>
+                              <div style={{ 
+                                width: `${Math.min((item.quantity / 100) * 100, 100)}%`, 
+                                height: "100%", 
+                                background: Number(item.quantity) < 20 ? "var(--accent)" : "var(--success)",
+                                boxShadow: `0 0 10px ${Number(item.quantity) < 20 ? "rgba(249, 115, 22, 0.3)" : "rgba(16, 185, 129, 0.3)"}`
+                              }} />
+                            </div>
+                            <StatusPill qty={item.quantity} />
+                          </div>
+                        </td>
+                        <td style={{ padding: "1.25rem 2rem", textAlign: "right" }}>
+                          {role === "admin" && (
+                            <div className="flex justify-end gap-1">
+                              <button className="btn-sm" onClick={() => handleEditClick(item)} style={{ background: "rgba(255,255,255,0.05)", fontWeight: 800 }}>ADJUST</button>
+                              <button className="btn-sm" onClick={() => handleDelete(item)} style={{ background: "rgba(225, 29, 72, 0.1)", color: "var(--accent)", fontWeight: 800 }}>REDACT</button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
             </div>
         </div>
@@ -188,27 +197,31 @@ const AdminStock = () => {
 
     return (
         <Layout>
-            <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-                <header className="flex justify-between align-center mb-2" style={{ flexWrap: "wrap", gap: "1rem" }}>
+            <div style={{ maxWidth: "1250px", margin: "0 auto" }}>
+                <header className="flex justify-between align-center mb-2" style={{ flexWrap: "wrap", gap: "1.5rem" }}>
                     <div>
-                        <h1>Global <span className="text-red">Distribution</span></h1>
-                        <p className="text-muted">Full transparency across Warehouse 2 and Warehouse 3 ecosystems.</p>
+                        <h1 style={{ letterSpacing: "-1.5px" }}>Global <span className="text-accent">Distribution</span></h1>
+                        <p className="text-muted" style={{ fontWeight: 600, fontSize: "0.8rem", letterSpacing: "1px" }}>MULTI-WAREHOUSE ASSET RECONCILIATION</p>
                     </div>
-                    <div style={{ position: "relative", width: "300px" }}>
-                        <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}>🔍</span>
-                        <input
-                            type="text"
-                            placeholder="Filter global inventory..."
-                            style={{ paddingLeft: "36px" }}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                    <div className="flex gap-1" style={{ flexWrap: "wrap" }}>
+                        <button onClick={handleDownloadReport} className="secondary" style={{ height: "3.5rem", padding: "0 1.5rem", fontWeight: 800, fontSize: "0.75rem", letterSpacing: "1px" }}>⤓ PDF REPORT</button>
+                        <button onClick={handleExportCSV} className="secondary" style={{ height: "3.5rem", padding: "0 1.5rem", fontWeight: 800, fontSize: "0.75rem", letterSpacing: "1px", color: "var(--accent)" }}>📈 CSV EXPORT</button>
+                        <div style={{ position: "relative", width: "320px" }}>
+                            <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", opacity: 0.5 }}>🔍</span>
+                            <input
+                                type="text"
+                                placeholder="Sync data filter..."
+                                style={{ paddingLeft: "42px", height: "3.5rem", borderRadius: "12px", fontSize: "0.9rem" }}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
                     </div>
                 </header>
 
                 {loading ? (
-                    <div className="card" style={{ textAlign: "center", padding: "4rem" }}>
-                        <div className="text-muted">Synchronizing global asset data...</div>
+                    <div className="card glass-card" style={{ textAlign: "center", padding: "5rem" }}>
+                        <div className="text-muted" style={{ fontWeight: 700, letterSpacing: "2px" }}>SYNCHRONIZING ASSET DATA...</div>
                     </div>
                 ) : (
                     <div className="flex flex-column gap-2">
@@ -220,43 +233,27 @@ const AdminStock = () => {
 
             {editingItem && (
                 <div style={{
-                    position: "fixed",
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: "rgba(0,0,0,0.7)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 1000,
-                    backdropFilter: "blur(4px)"
+                    position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)",
+                    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(6px)"
                 }}>
-                    <div className="card" style={{ width: "100%", maxWidth: "400px" }}>
-                        <h2 className="mb-2">Adjust Inventory</h2>
+                    <div className="card glass-card" style={{ width: "100%", maxWidth: "420px", padding: "3rem" }}>
+                        <header className="mb-2">
+                            <h2 style={{ letterSpacing: "-1px" }}>Inventory <span className="text-accent">Dossier</span></h2>
+                            <p className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 600 }}>Adjusting: {editingItem.product_name}</p>
+                        </header>
+                        
                         <form onSubmit={handleUpdate} className="flex flex-column gap-1">
                             <div>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8rem", fontWeight: 700 }}>PRODUCT</label>
-                                <input type="text" value={editingItem.product_name} disabled />
+                                <label style={{ display: "block", marginBottom: "0.6rem", fontSize: "0.7rem", fontWeight: 800, color: "rgba(255,255,255,0.4)" }}>FACILITY STORAGE PIN</label>
+                                <input type="text" value={editData.shelf_code} onChange={(e) => setEditData({ ...editData, shelf_code: e.target.value })} required style={{ height: "3.5rem", backgroundColor: "rgba(255,255,255,0.03)", color: "white", padding: "0 1.25rem", border: "1px solid rgba(255,255,255,0.1)" }} />
                             </div>
                             <div>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8rem", fontWeight: 700 }}>SHELF PIN</label>
-                                <input
-                                    type="text"
-                                    value={editData.shelf_code}
-                                    onChange={(e) => setEditData({ ...editData, shelf_code: e.target.value })}
-                                    required
-                                />
+                                <label style={{ display: "block", marginBottom: "0.6rem", fontSize: "0.7rem", fontWeight: 800, color: "rgba(255,255,255,0.4)" }}>QUANTITY (UNIT COUNT)</label>
+                                <input type="number" value={editData.quantity} onChange={(e) => setEditData({ ...editData, quantity: e.target.value })} required style={{ height: "3.5rem", backgroundColor: "rgba(255,255,255,0.03)", color: "white", padding: "0 1.25rem", border: "1px solid rgba(255,255,255,0.1)" }} />
                             </div>
-                            <div>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8rem", fontWeight: 700 }}>QUANTITY</label>
-                                <input
-                                    type="number"
-                                    value={editData.quantity}
-                                    onChange={(e) => setEditData({ ...editData, quantity: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div className="flex gap-1 justify-end mt-1">
-                                <button type="button" onClick={() => setEditingItem(null)} style={{ backgroundColor: "#666" }}>Cancel</button>
-                                <button type="submit">Update Record</button>
+                            <div className="flex gap-1 justify-end mt-2">
+                                <button type="button" onClick={() => setEditingItem(null)} style={{ flex: 1, backgroundColor: "#334155", color: "white", fontWeight: 800 }}>ABORT</button>
+                                <button type="submit" style={{ flex: 1, backgroundColor: "var(--primary)", color: "white", fontWeight: 800 }}>UPDATE REPOSITORY</button>
                             </div>
                         </form>
                     </div>

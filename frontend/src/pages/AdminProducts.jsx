@@ -36,9 +36,7 @@ const AdminProducts = () => {
         }
     };
 
-    useEffect(() => {
-        fetchProducts();
-    }, []);
+    useEffect(() => { fetchProducts(); }, []);
 
     const handleAddProduct = async (e) => {
         e.preventDefault();
@@ -52,17 +50,13 @@ const AdminProducts = () => {
                 shelf_code: newProduct.shelf_code
             });
 
-            setMessage({ type: "success", text: "Product cataloged and synchronized successfully!" });
-            setNewProduct({
-                name: "",
-                warehouse_id: 1,
-                shelf_code: ""
-            });
+            toast.success("Asset cataloged and synchronized!");
+            setNewProduct({ name: "", warehouse_id: 1, shelf_code: "" });
             setShowAddForm(false);
             fetchProducts();
         } catch (error) {
             const errorMsg = error.response?.data?.error || "Failed to register asset.";
-            setMessage({ type: "error", text: errorMsg });
+            toast.error(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -79,20 +73,20 @@ const AdminProducts = () => {
             await api.put(`/products/${editingProduct.id}`, editData);
             setEditingProduct(null);
             fetchProducts();
-            toast.success("Product specs updated successfully.");
-        } catch (error) {
+            toast.success("Product specs updated.");
+        } catch (err) {
             toast.error("Failed to update product specs.");
         }
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("CAUTION: This will remove the item and all its stock records from the entire system. Proceed?")) return;
+        if (!window.confirm("CAUTION: This will redact the item and all its stock records. Proceed?")) return;
         try {
             await api.delete(`/products/${id}`);
             fetchProducts();
-            toast.success("Product deleted successfully.");
-        } catch (error) {
-            toast.error("Failed to delete product. Ensure it has no active stock or try again.");
+            toast.success("Product redacted.");
+        } catch (err) {
+            toast.error("Deletion rejected. Ensure no active dependencies.");
         }
     };
 
@@ -103,130 +97,94 @@ const AdminProducts = () => {
 
     return (
         <Layout>
-            <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-                <header className="flex justify-between align-center mb-2">
+            <div style={{ maxWidth: "1250px", margin: "0 auto" }}>
+                <header className="flex justify-between align-center mb-3" style={{ flexWrap: "wrap", gap: "1.5rem" }}>
                     <div>
-                        <h1>Product <span className="text-red">Catalogue</span></h1>
-                        <p className="text-muted">Maintain the central registry of all storable items.</p>
+                        <h1 style={{ letterSpacing: "-1.5px" }}>Unified <span className="text-accent">Catalog</span></h1>
+                        <p className="text-muted" style={{ fontWeight: 600, fontSize: "0.8rem", letterSpacing: "1px" }}>MASTER ASSET REGISTRY CONTROL</p>
                     </div>
-                    {(role === "admin" || role === "user") && (
-                        <button onClick={() => setShowAddForm(!showAddForm)}>
-                            {showAddForm ? "Back to Registry" : "+ New Catalogue Entry"}
-                        </button>
-                    )}
+                    <div className="flex gap-1">
+                        <div style={{ position: "relative", width: "320px" }}>
+                          <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", opacity: 0.5 }}>🔍</span>
+                          <input
+                              type="text"
+                              placeholder="Search master catalog..."
+                              style={{ paddingLeft: "42px", height: "3.5rem", borderRadius: "12px", fontSize: "0.9rem" }}
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                          />
+                        </div>
+                        {(role === "admin" || role === "user") && (
+                            <button onClick={() => setShowAddForm(!showAddForm)} style={{ height: "3.5rem", padding: "0 1.5rem", fontWeight: 800 }}>
+                                {showAddForm ? "CLOSE FORM" : "+ NEW ENTRY"}
+                            </button>
+                        )}
+                    </div>
                 </header>
 
-                {message.text && (
-                    <div className="card mb-2" style={{
-                        backgroundColor: message.type === "success" ? "rgba(16, 185, 129, 0.1)" : "rgba(225, 29, 72, 0.1)",
-                        borderColor: message.type === "success" ? "var(--success)" : "var(--accent)",
-                        color: message.type === "success" ? "var(--success)" : "var(--accent)"
-                    }}>
-                        {message.text}
-                    </div>
-                )}
-
                 {showAddForm && (
-                    <div className="card mb-2" style={{ borderLeft: "4px solid var(--primary)" }}>
-                        <h2 className="mb-2">Define New Product Entry</h2>
+                    <div className="card glass-card mb-2" style={{ borderLeft: "4px solid var(--primary)", padding: "2.5rem" }}>
+                        <h2 style={{ fontSize: "1.25rem", letterSpacing: "-0.5px", marginBottom: "1.5rem" }}>Define New Product Protocol</h2>
                         <form onSubmit={handleAddProduct} className="flex flex-column gap-1">
                             <div className="flex gap-1" style={{ flexWrap: "wrap" }}>
                                 <div style={{ flex: 2, minWidth: "250px" }}>
-                                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)" }}>OFFICIAL NAME</label>
-                                    <input
-                                        type="text"
-                                        value={newProduct.name}
-                                        onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                                        placeholder="Identification Name"
-                                        required
-                                    />
+                                    <label style={{ display: "block", marginBottom: "0.6rem", fontSize: "0.7rem", fontWeight: 800, color: "rgba(255,255,255,0.4)" }}>OFFICIAL IDENTIFIER</label>
+                                    <input type="text" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} placeholder="Asset Name" required style={{ height: "3.5rem", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "white" }} />
                                 </div>
                                 <div style={{ flex: 1, minWidth: "200px" }}>
-                                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)" }}>STORAGE WAREHOUSE</label>
-                                    <select
-                                        value={newProduct.warehouse_id}
-                                        onChange={(e) => setNewProduct({ ...newProduct, warehouse_id: e.target.value })}
-                                    >
-                                        {warehouses.map(w => (
-                                            <option key={w.id} value={w.id}>{w.name}</option>
-                                        ))}
+                                    <label style={{ display: "block", marginBottom: "0.6rem", fontSize: "0.7rem", fontWeight: 800, color: "rgba(255,255,255,0.4)" }}>FACILITY NODE</label>
+                                    <select value={newProduct.warehouse_id} onChange={(e) => setNewProduct({ ...newProduct, warehouse_id: e.target.value })} style={{ height: "3.5rem", backgroundColor: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", color: "white", padding: "0 1rem", borderRadius: "12px" }}>
+                                        {warehouses.map(w => ( <option key={w.id} value={w.id} style={{ backgroundColor: "#1e293b", color: "white" }}>{w.name.toUpperCase()}</option> ))}
                                     </select>
                                 </div>
                                 <div style={{ flex: 1, minWidth: "150px" }}>
-                                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)" }}>SHELF PIN</label>
-                                    <input
-                                        type="text"
-                                        value={newProduct.shelf_code}
-                                        onChange={(e) => setNewProduct({ ...newProduct, shelf_code: e.target.value })}
-                                        placeholder="e.g. BIN-01"
-                                        required
-                                    />
+                                    <label style={{ display: "block", marginBottom: "0.6rem", fontSize: "0.7rem", fontWeight: 800, color: "rgba(255,255,255,0.4)" }}>STORAGE PIN</label>
+                                    <input type="text" value={newProduct.shelf_code} onChange={(e) => setNewProduct({ ...newProduct, shelf_code: e.target.value })} placeholder="e.g. BIN-01" required style={{ height: "3.5rem", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "white" }} />
                                 </div>
                             </div>
 
                             <div className="flex justify-end mt-1">
-                                <button type="submit" disabled={loading}>
-                                    {loading ? "Cataloging Asset..." : "Verify and Register Product"}
+                                <button type="submit" disabled={loading} style={{ height: "3.5rem", padding: "0 2rem", fontWeight: 900 }}>
+                                    {loading ? "INITIALIZING..." : "VERIFY AND REGISTER ASSET"}
                                 </button>
                             </div>
                         </form>
                     </div>
                 )}
 
-                <div className="card">
-                    <div className="flex justify-between align-center mb-2" style={{ flexWrap: "wrap", gap: "1rem" }}>
-                        <h2>Asset Registry</h2>
-                        <div style={{ position: "relative", width: "350px" }}>
-                            <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}>🔍</span>
-                            <input
-                                type="text"
-                                placeholder="Search catalogue by name or SKU..."
-                                style={{ paddingLeft: "36px" }}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                <div className="card glass-card" style={{ padding: 0, borderRadius: "16px", overflow: "hidden" }}>
+                    <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <h2 style={{ fontSize: "1.1rem", margin: 0 }}>Active Asset Registry</h2>
+                      <p className="text-muted" style={{ fontSize: "0.75rem", fontWeight: 600 }}>{filteredProducts.length} SYNCHRONIZED ENTRIES</p>
                     </div>
 
                     <div style={{ overflowX: "auto" }}>
-                        <table>
-                            <thead>
+                        <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+                            <thead style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
                                 <tr>
-                                    <th>Registered Product</th>
-                                    <th>Serial / SKU</th>
-                                    <th>Technical Details</th>
-                                    <th>Operations</th>
+                                    <th style={{ padding: "1.25rem 2rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>CORE ASSET</th>
+                                    <th style={{ padding: "1.25rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>TECHNICAL SKU</th>
+                                    <th style={{ padding: "1.25rem", fontSize: "0.65rem", letterSpacing: "1px", color: "var(--text-muted)" }}>SPECIFICATIONS</th>
+                                    <th style={{ padding: "1.25rem 2rem", textAlign: "right" }}>CONTROL</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    <tr><td colSpan="4" style={{ textAlign: "center", padding: "4rem" }}>Retrieving catalogue data...</td></tr>
+                                    <tr><td colSpan="4" style={{ textAlign: "center", padding: "4rem" }}>SYNCHRONIZING CATALOG DATA...</td></tr>
                                 ) : filteredProducts.length > 0 ? (
                                     filteredProducts.map((p) => (
                                         <tr key={p.id}>
-                                            <td style={{ fontWeight: 800, color: "var(--primary)" }}>{p.name}</td>
-                                            <td>
-                                                <code style={{ background: "var(--bg-main)", padding: "0.25rem 0.5rem", borderRadius: "4px", fontSize: "0.85rem" }}>{p.sku}</code>
+                                            <td style={{ padding: "1.25rem 2rem", fontWeight: 800, color: "var(--primary)", fontSize: "1rem" }}>{p.name}</td>
+                                            <td style={{ padding: "1.25rem" }}>
+                                                <code style={{ background: "rgba(255,255,255,0.05)", padding: "0.25rem 0.6rem", borderRadius: "4px", fontSize: "0.8rem", color: "white" }}>{p.sku}</code>
                                             </td>
-                                            <td className="text-muted" style={{ fontSize: "0.9rem" }}>{p.description || "No specifications provided."}</td>
-                                            <td>
+                                            <td className="text-muted" style={{ padding: "1.25rem", fontSize: "0.85rem", fontWeight: 500 }}>{p.description || "No specifications defined."}</td>
+                                            <td style={{ padding: "1.25rem 2rem", textAlign: "right" }}>
                                                 {(role === "admin" || role === "user") && (
                                                     <div className="flex gap-1 justify-end">
-                                                        <button
-                                                            className="secondary"
-                                                            onClick={() => handleEditClick(p)}
-                                                            style={{ padding: "0.4rem 0.8rem", fontSize: "0.75rem" }}
-                                                        >
-                                                            Edit
-                                                        </button>
+                                                        <button className="btn-sm" onClick={() => handleEditClick(p)} style={{ background: "rgba(255,255,255,0.05)", fontWeight: 800 }}>SPECS</button>
                                                         {role === "admin" && (
-                                                            <button
-                                                                className="secondary"
-                                                                onClick={() => handleDelete(p.id)}
-                                                                style={{ padding: "0.4rem 0.8rem", fontSize: "0.75rem", backgroundColor: "var(--accent)" }}
-                                                            >
-                                                                Delete
-                                                            </button>
+                                                            <button className="btn-sm" onClick={() => handleDelete(p.id)} style={{ background: "rgba(225, 29, 72, 0.1)", color: "var(--accent)", fontWeight: 800 }}>REDACT</button>
                                                         )}
                                                     </div>
                                                 )}
@@ -234,7 +192,7 @@ const AdminProducts = () => {
                                         </tr>
                                     ))
                                 ) : (
-                                    <tr><td colSpan="4" style={{ textAlign: "center", padding: "4rem" }}>No items found matching the search criteria.</td></tr>
+                                    <tr><td colSpan="4" style={{ textAlign: "center", padding: "4rem" }} className="text-muted">NO ENTRIES FOUND IN CURRENT CACHE.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -244,38 +202,23 @@ const AdminProducts = () => {
 
             {editingProduct && (
                 <div style={{
-                    position: "fixed",
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: "rgba(0,0,0,0.7)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 1000,
-                    backdropFilter: "blur(4px)"
+                    position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)",
+                    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(6px)"
                 }}>
-                    <div className="card" style={{ width: "100%", maxWidth: "450px" }}>
-                        <h2 className="mb-2">Update Catalogue Specifications</h2>
+                    <div className="card glass-card" style={{ width: "100%", maxWidth: "460px", padding: "3rem" }}>
+                        <h2 style={{ letterSpacing: "-1px", fontSize: "1.25rem", marginBottom: "1.5rem" }}>Catalogue <span className="text-accent">Amendment</span></h2>
                         <form onSubmit={handleUpdate} className="flex flex-column gap-1">
                             <div>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)" }}>PRODUCT NAME</label>
-                                <input
-                                    type="text"
-                                    value={editData.name}
-                                    onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                                    required
-                                />
+                                <label style={{ display: "block", marginBottom: "0.6rem", fontSize: "0.7rem", fontWeight: 800, color: "rgba(255,255,255,0.4)" }}>PRODUCT NAME</label>
+                                <input type="text" value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} required style={{ height: "3.5rem", backgroundColor: "rgba(255,255,255,0.03)", color: "white" }} />
                             </div>
                             <div>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)" }}>DESCRIPTION / TECH SPECS</label>
-                                <textarea
-                                    value={editData.description}
-                                    onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                                    style={{ height: "100px", resize: "vertical" }}
-                                />
+                                <label style={{ display: "block", marginBottom: "0.6rem", fontSize: "0.7rem", fontWeight: 800, color: "rgba(255,255,255,0.4)" }}>ANALYSIS / TECH SPECS</label>
+                                <textarea value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} style={{ height: "120px", resize: "none", backgroundColor: "rgba(255,255,255,0.03)", color: "white", padding: "1rem" }} placeholder="Define asset specifications..." />
                             </div>
-                            <div className="flex gap-1 justify-end mt-1">
-                                <button type="button" onClick={() => setEditingProduct(null)} style={{ backgroundColor: "#666" }}>Cancel</button>
-                                <button type="submit">Synchronize Changes</button>
+                            <div className="flex gap-1 justify-end mt-2">
+                                <button type="button" onClick={() => setEditingProduct(null)} style={{ flex: 1, backgroundColor: "#334155" }}>ABORT</button>
+                                <button type="submit" style={{ flex: 1, backgroundColor: "var(--primary)" }}>UPDATE CACHE</button>
                             </div>
                         </form>
                     </div>

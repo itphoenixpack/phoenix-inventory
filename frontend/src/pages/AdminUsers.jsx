@@ -5,190 +5,213 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 
 const AdminUsers = () => {
-    const { user: currentUser } = useAuth();
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [clearanceHours, setClearanceHours] = useState(1);
 
-    const fetchUsers = async () => {
-        try {
-            const res = await api.get("/users");
-            setUsers(res.data);
-        } catch (error) {
-            console.error("Error fetching users:", error);
-            toast.error("Failed to fetch users registry.");
-        } finally {
-            setLoading(false);
-        }
+  const fetchUsers = async () => {
+    try {
+      const res = await api.get("/users");
+      setUsers(res.data);
+    } catch (err) {
+      toast.error("Security Registry Sync Failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchUsers(); }, []);
+
+  const handleStatusUpdate = async (id, status) => {
+    try {
+      await api.put(`/users/${id}/status`, { status });
+      toast.success(`User state: ${status.toUpperCase()}`);
+      fetchUsers();
+    } catch (err) {
+      toast.error("State transition rejected.");
+    }
+  };
+
+  const handleRoleUpdate = async (id, role) => {
+    try {
+      await api.put(`/users/${id}/role`, { role });
+      toast.success(`Role updated: ${role.toUpperCase()}`);
+      fetchUsers();
+    } catch (err) {
+      toast.error("Role elevation denied.");
+    }
+  };
+
+  const grantCompanyClearance = async (userId) => {
+    try {
+      const targetCompany = currentUser.company === 'phoenix' ? 'inpack' : 'phoenix';
+      await api.post(`/users/${userId}/clearance`, {
+        company: targetCompany,
+        hours: clearanceHours
+      });
+      toast.success(`Cross-domain clearance granted for ${clearanceHours}hr(s)`);
+      fetchUsers();
+      setSelectedUser(null);
+    } catch (err) {
+        toast.error("Clearance authorization failed.");
+    }
+  };
+
+  const RoleBadge = ({ role }) => {
+    const configs = {
+      super_admin: { label: "SUPER ADMIN", bg: "var(--primary)", border: "rgba(225, 29, 72, 0.3)" },
+      admin: { label: "ADMIN", bg: "var(--accent)", border: "rgba(249, 115, 22, 0.3)" },
+      user: { label: "USER", bg: "#64748b", border: "rgba(100, 116, 139, 0.3)" }
     };
-
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    const handleDelete = async (userId, userName) => {
-        if (userId === currentUser.id) {
-            toast.error("Security Protocol: You cannot terminate your own administrative access.");
-            return;
-        }
-
-        if (!window.confirm(`Are you sure you want to remove user "${userName}"? This action is irreversible.`)) return;
-        
-        try {
-            await api.delete(`/users/${userId}`);
-            toast.success(`User access terminated: ${userName}`);
-            fetchUsers();
-        } catch (error) {
-            toast.error("Failed to execute user termination.");
-            console.error(error);
-        }
-    };
-
-    const handleToggleRole = async (user) => {
-        if (user.id === currentUser.id) {
-            toast.error("Security Protocol: You cannot demote your own administrative role.");
-            return;
-        }
-
-        const newRole = user.role === "admin" ? "user" : "admin";
-        if (!window.confirm(`Change ${user.name}'s permission level to ${newRole.toUpperCase()}?`)) return;
-
-        try {
-            await api.put(`/users/${user.id}/role`, { role: newRole });
-            toast.success(`Permission clearance updated for ${user.name}`);
-            fetchUsers();
-        } catch (error) {
-            toast.error("Failed to update security clearance.");
-            console.error(error);
-        }
-    };
-
-    const filteredUsers = users.filter(u =>
-        (u.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-        (u.email?.toLowerCase() || "").includes(searchTerm.toLowerCase())
-    );
-
+    const config = configs[role] || configs.user;
     return (
-        <Layout>
-            <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-                <header className="flex justify-between align-center mb-2" style={{ flexWrap: "wrap", gap: "1rem" }}>
-                    <div>
-                        <h1>User <span className="text-red">Clearance</span></h1>
-                        <p className="text-muted">Manage system access and permission hierarchies.</p>
-                    </div>
-                    <div style={{ position: "relative", width: "300px" }}>
-                        <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}>🔍</span>
-                        <input
-                            type="text"
-                            placeholder="Search by name or email..."
-                            style={{ paddingLeft: "36px" }}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </header>
-
-                {loading ? (
-                    <div className="card" style={{ textAlign: "center", padding: "4rem" }}>
-                        <div className="text-muted">Synchronizing user credentials...</div>
-                    </div>
-                ) : (
-                    <div className="card">
-                        <div style={{ overflowX: "auto" }}>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Identity</th>
-                                        <th>Email Address</th>
-                                        <th>Security Level</th>
-                                        <th>Registered Date</th>
-                                        <th style={{ textAlign: "right" }}>Control Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredUsers.length > 0 ? (
-                                        filteredUsers.map((user) => (
-                                            <tr key={user.id}>
-                                                <td>
-                                                    <div className="flex align-center gap-1">
-                                                        <div style={{
-                                                            width: "36px",
-                                                            height: "36px",
-                                                            borderRadius: "50%",
-                                                            backgroundColor: user.role === "admin" ? "var(--primary)" : "var(--bg-main)",
-                                                            color: user.role === "admin" ? "white" : "var(--text-main)",
-                                                            display: "flex",
-                                                            alignItems: "center",
-                                                            justifyContent: "center",
-                                                            fontWeight: 800,
-                                                            border: `2px solid ${user.role === "admin" ? "var(--primary)" : "var(--border)"}`
-                                                        }}>
-                                                            {user.name?.charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <span style={{ fontWeight: 700 }}>{user.name} {user.id === currentUser.id && <span className="text-muted" style={{ fontWeight: 400 }}>(You)</span>}</span>
-                                                    </div>
-                                                </td>
-                                                <td><span className="text-muted">{user.email}</span></td>
-                                                <td>
-                                                    <span style={{
-                                                        padding: "0.25rem 0.75rem",
-                                                        borderRadius: "20px",
-                                                        fontSize: "0.75rem",
-                                                        fontWeight: 800,
-                                                        backgroundColor: user.role === "admin" ? "rgba(225, 29, 72, 0.1)" : "rgba(12, 26, 61, 0.05)",
-                                                        color: user.role === "admin" ? "var(--accent)" : "var(--primary)",
-                                                        border: `1px solid ${user.role === "admin" ? "var(--accent)" : "var(--primary)"}`
-                                                    }}>
-                                                        {user.role.toUpperCase()}
-                                                    </span>
-                                                </td>
-                                                <td>{new Date(user.created_at).toLocaleDateString()}</td>
-                                                <td style={{ textAlign: "right" }}>
-                                                    <div className="flex justify-end gap-1">
-                                                        <button
-                                                            className="btn-sm"
-                                                            onClick={() => handleToggleRole(user)}
-                                                            disabled={user.id === currentUser.id}
-                                                            style={{ 
-                                                                padding: "0.25rem 0.65rem", 
-                                                                fontSize: "0.75rem",
-                                                                opacity: user.id === currentUser.id ? 0.5 : 1
-                                                            }}
-                                                        >
-                                                            {user.role === "admin" ? "Demote" : "Promote"}
-                                                        </button>
-                                                        <button
-                                                            className="btn-sm"
-                                                            onClick={() => handleDelete(user.id, user.name)}
-                                                            disabled={user.id === currentUser.id}
-                                                            style={{ 
-                                                                padding: "0.25rem 0.65rem", 
-                                                                fontSize: "0.75rem", 
-                                                                backgroundColor: "var(--accent)",
-                                                                opacity: user.id === currentUser.id ? 0.5 : 1
-                                                            }}
-                                                        >
-                                                            Revoke Access
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="5" style={{ textAlign: "center", padding: "3rem" }}>
-                                                <div className="text-muted">No security records found matching query.</div>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </Layout>
+      <span style={{
+        backgroundColor: config.bg,
+        color: "white",
+        fontSize: "0.65rem",
+        fontWeight: 900,
+        padding: "0.3rem 0.8rem",
+        borderRadius: "4px",
+        letterSpacing: "1.2px",
+        boxShadow: `0 4px 10px ${config.border}`,
+      }}>
+        {config.label}
+      </span>
     );
+  };
+
+  return (
+    <Layout>
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        <header className="flex justify-between align-center mb-2">
+          <div>
+            <h1 style={{ letterSpacing: "-1px" }}>Personnel <span className="text-accent">Registry</span></h1>
+            <p className="text-muted" style={{ fontWeight: 600, fontSize: "0.8rem", letterSpacing: "1px" }}>CENTRAL COMMAND ACCESS PROTOCOL</p>
+          </div>
+        </header>
+
+        <div className="card glass-card" style={{ padding: 0, overflow: "hidden", borderRadius: "16px" }}>
+          <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+            <thead style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>
+              <tr>
+                <th style={{ padding: "1.5rem", fontSize: "0.7rem", color: "var(--text-muted)", letterSpacing: "1px" }}>OPERATOR IDENTITY</th>
+                <th style={{ padding: "1.5rem", fontSize: "0.7rem", color: "var(--text-muted)", letterSpacing: "1px" }}>CLEARANCE LEVEL</th>
+                <th style={{ padding: "1.5rem", fontSize: "0.7rem", color: "var(--text-muted)", letterSpacing: "1px" }}>DOMAINS</th>
+                <th style={{ padding: "1.5rem", fontSize: "0.7rem", color: "var(--text-muted)", letterSpacing: "1px" }}>STATUS</th>
+                <th style={{ padding: "1.5rem", textAlign: "right" }}>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id} style={{ transition: "background 0.2s" }}>
+                  <td style={{ padding: "1.25rem", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>{u.name}</div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 500 }}>{u.email}</div>
+                  </td>
+                  <td style={{ padding: "1.25rem", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <RoleBadge role={u.role} />
+                  </td>
+                  <td style={{ padding: "1.25rem", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    {u.company_access && Object.keys(u.company_access).length > 0 ? (
+                      <div className="flex gap-1">
+                        {Object.entries(u.company_access).map(([comp, data]) => (
+                          <div key={comp} style={{ 
+                            fontSize: "0.6rem", 
+                            fontWeight: 800, 
+                            backgroundColor: "rgba(255,255,255,0.05)", 
+                            padding: "0.2rem 0.5rem", 
+                            borderRadius: "4px",
+                            border: "1px solid rgba(255,255,255,0.1)"
+                          }}>
+                            {comp.toUpperCase()} (Expires: {new Date(data.expires_at).getHours()}:00)
+                          </div>
+                        ))}
+                      </div>
+                    ) : <span className="text-muted" style={{ fontSize: "0.7rem" }}>Local Node Only</span>}
+                  </td>
+                  <td style={{ padding: "1.25rem", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <span style={{ 
+                      color: u.status === 'active' ? "var(--success)" : "var(--accent)", 
+                      fontSize: "0.75rem", 
+                      fontWeight: 800, 
+                      textTransform: "uppercase" 
+                    }}>
+                      ● {u.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: "1.25rem", textAlign: "right", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    {currentUser.id !== u.id && (
+                      <div className="flex justify-end gap-1">
+                        <button className="btn-sm" onClick={() => setSelectedUser(u)} style={{ backgroundColor: "var(--primary)", borderColor: "transparent", color: "white", fontSize: "0.65rem", fontWeight: 800 }}>CLEARANCE</button>
+                        <select 
+                          className="btn-sm" 
+                          value={u.role} 
+                          onChange={(e) => handleRoleUpdate(u.id, e.target.value)}
+                          style={{ fontSize: "0.65rem", fontWeight: 800, backgroundColor: "#1e293b", color: "white", border: "1px solid rgba(255,255,255,0.1)" }}
+                        >
+                          <option value="user" style={{ backgroundColor: "#1e293b" }}>User</option>
+                          <option value="admin" style={{ backgroundColor: "#1e293b" }}>Admin</option>
+                          {currentUser.role === 'super_admin' && <option value="super_admin" style={{ backgroundColor: "#1e293b" }}>Super Admin</option>}
+                        </select>
+                        <button 
+                          className="btn-sm" 
+                          onClick={() => handleStatusUpdate(u.id, u.status === 'active' ? 'suspended' : 'active')}
+                          style={{ 
+                            backgroundColor: u.status === 'active' ? "rgba(225, 29, 72, 0.1)" : "rgba(16, 185, 129, 0.1)",
+                            color: u.status === 'active' ? "var(--accent)" : "var(--success)",
+                            fontWeight: 800,
+                            fontSize: "0.65rem"
+                          }}
+                        >
+                          {u.status === 'active' ? "SUSPEND" : "RESTORE"}
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {selectedUser && (
+        <div style={{
+          position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.8)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)"
+        }}>
+          <div className="card glass-card" style={{ width: "100%", maxWidth: "400px", padding: "2.5rem" }}>
+            <h2 style={{ letterSpacing: "-1px", fontSize: "1.25rem" }}>Authorization <span className="text-accent">Protocol</span></h2>
+            <p className="text-muted" style={{ fontSize: "0.8rem", marginBottom: "2rem" }}>Granting cross-domain access for <strong>{selectedUser.name}</strong>.</p>
+            
+            <div style={{ marginBottom: "2rem" }}>
+              <label style={{ display: "block", marginBottom: "0.75rem", fontSize: "0.7rem", fontWeight: 800, color: "var(--text-muted)" }}>TEMPORARY CLEARANCE (HOURS)</label>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                {[1, 4, 8, 24].map(h => (
+                  <button key={h} onClick={() => setClearanceHours(h)} style={{ 
+                    flex: 1, 
+                    backgroundColor: clearanceHours === h ? "var(--primary)" : "rgba(255,255,255,0.05)",
+                    border: clearanceHours === h ? "1px solid var(--primary)" : "1px solid rgba(255,255,255,0.1)",
+                    color: "white",
+                    fontSize: "0.8rem",
+                    fontWeight: 800,
+                    padding: "0.75rem 0"
+                  }}>{h}hr</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-1">
+              <button style={{ flex: 1, backgroundColor: "#334155" }} onClick={() => setSelectedUser(null)}>ABORT</button>
+              <button style={{ flex: 1, backgroundColor: "var(--accent)" }} onClick={() => grantCompanyClearance(selectedUser.id)}>AUTHORIZE</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Layout>
+  );
 };
 
 export default AdminUsers;

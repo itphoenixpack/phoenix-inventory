@@ -6,6 +6,7 @@ const Sidebar = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const role = user?.role;
+    const isAdmin = role === "admin" || role === "super_admin";
 
     const adminLinks = [
         { path: "/admin", label: "Analytics", icon: "📊" },
@@ -22,7 +23,7 @@ const Sidebar = () => {
         { path: "/user/stock", label: "Updates", icon: "📥" },
     ];
 
-    const links = role === "admin" ? adminLinks : userLinks;
+    const links = isAdmin ? adminLinks : userLinks;
 
     const handleLogout = () => {
         logout();
@@ -35,32 +36,35 @@ const Sidebar = () => {
             backgroundColor: "white",
             borderRight: "1px solid var(--border)",
             minHeight: "calc(100vh - 73px)",
-            padding: "2rem 1.25rem",
+            padding: "2.5rem 1.5rem",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "space-between"
+            justifyContent: "space-between",
+            transition: "all 0.5s cubic-bezier(0.4, 0, 0.2, 1)"
         }}>
             <div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                     {links.map((link) => (
-                        <li key={link.path} style={{ marginBottom: "0.25rem" }}>
+                        <li key={link.path} style={{ marginBottom: "0.5rem" }}>
                             <Link
                                 to={link.path}
                                 style={{
                                     display: "flex",
                                     alignItems: "center",
-                                    gap: "1rem",
-                                    padding: "0.85rem 1.25rem",
-                                    borderRadius: "var(--radius-md)",
+                                    gap: "1.25rem",
+                                    padding: "1rem 1.5rem",
+                                    borderRadius: "16px",
                                     color: location.pathname === link.path ? "white" : "var(--text-muted)",
                                     backgroundColor: location.pathname === link.path ? "var(--primary)" : "transparent",
-                                    transition: "var(--transition)",
+                                    transition: "all 0.3s ease",
                                     textDecoration: "none",
-                                    fontWeight: 600
+                                    fontWeight: 700,
+                                    fontSize: "0.85rem",
+                                    letterSpacing: "0.5px"
                                 }}
                             >
-                                <span style={{ fontSize: "1.2rem" }}>{link.icon}</span>
-                                <span>{link.label}</span>
+                                <span style={{ fontSize: "1.3rem", opacity: location.pathname === link.path ? 1 : 0.6 }}>{link.icon}</span>
+                                <span>{link.label.toUpperCase()}</span>
                             </Link>
                         </li>
                     ))}
@@ -71,10 +75,21 @@ const Sidebar = () => {
                 <button
                     onClick={handleLogout}
                     className="secondary"
-                    style={{ width: "100%", justifyContent: "flex-start", gap: "1rem" }}
+                    style={{ 
+                        width: "100%", 
+                        justifyContent: "center", 
+                        gap: "1rem", 
+                        backgroundColor: "rgba(0,0,0,0.03)", 
+                        color: "var(--primary)",
+                        padding: "1rem",
+                        borderRadius: "16px",
+                        fontWeight: 900,
+                        fontSize: "0.75rem",
+                        letterSpacing: "1px",
+                        border: "none"
+                    }}
                 >
-                    <span>🚪</span>
-                    <span>Sign Out</span>
+                    <span>SIGN OUT</span>
                 </button>
             </div>
         </aside>

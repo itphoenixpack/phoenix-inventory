@@ -10,10 +10,11 @@ export const AuthProvider = ({ children }) => {
         const token = localStorage.getItem("token");
         const role = localStorage.getItem("role");
         const name = localStorage.getItem("name");
+        const company = localStorage.getItem("company") || "phoenix";
 
         if (token && role) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
-            setUser({ token, role, name });
+            setUser({ token, role, name, company });
         }
         setLoading(false);
     }, []);
@@ -22,6 +23,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem("token", userData.token);
         localStorage.setItem("role", userData.role);
         localStorage.setItem("name", userData.name);
+        localStorage.setItem("company", userData.company || localStorage.getItem("company") || "phoenix");
         setUser(userData);
     };
 
@@ -29,6 +31,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem("token");
         localStorage.removeItem("role");
         localStorage.removeItem("name");
+        localStorage.removeItem("company");
         setUser(null);
     };
 

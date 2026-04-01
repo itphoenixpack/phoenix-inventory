@@ -1,4 +1,3 @@
-const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -7,10 +6,11 @@ const register = async (req, res) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
+    const db = req.db;
 
-    const newUser = await pool.query(
-      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, email, hashedPassword, role]
+    const newUser = await db.query(
+      'INSERT INTO users (name, email, password, role, status, login_count) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, status',
+      [name, email, hashedPassword, role || 'user', 'active', 0]
     );
 
     res.status(201).json(newUser.rows[0]);
@@ -23,73 +23,61 @@ const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
+    const db = req.db;
+    const company = req.company || 'phoenix';
 
-    if (user.rows.length === 0) {
-      return res.status(400).json({ message: 'User not found' });
+    const userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = userRes.rows[0];
+
+    if (!user) {
+      return res.status(400).json({ message: 'Identity not found in current logistics node.' });
     }
 
-    const validPassword = await bcrypt.compare(
-      password,
-      user.rows[0].password
-    );
+    if (user.status === 'suspended') {
+      return res.status(403).json({ message: 'Account access has been suspended. Contact Administration.' });
+    }
 
+    const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      return res.status(400).json({ message: 'Invalid password' });
+      return res.status(400).json({ message: 'Security key verification failed.' });
     }
 
-    const u = user.rows[0];
-    const isFirstLogin = Number(u.login_count ?? 0) === 0;
+    // Professional Audit: Update login metrics
+    const isFirstLogin = Number(user.login_count ?? 0) === 0;
+    await db.query(
+      'UPDATE users SET login_count = login_count + 1, last_login_at = NOW() WHERE id = $1',
+      [user.id]
+    );
 
-    try {
-      await pool.query(
-        'UPDATE users SET login_count = COALESCE(login_count, 0) + 1, last_login_at = NOW() WHERE id = $1',
-        [u.id]
-      );
-    } catch (e) {
-      // If columns don't exist yet, login should still succeed.
-    }
-
-    if (u.role === 'user' && isFirstLogin) {
-      const user_name = u.name || u.email || 'Unknown User';
-      const message = `New user login: ${user_name} (${u.email}) accessed the system for the first time.`;
-      try {
-        await pool.query(
-          'INSERT INTO notifications (message, user_name, type) VALUES ($1, $2, $3)',
-          [message, user_name, 'USER_ACCESS']
-        );
-      } catch (e) {
-        try {
-          await pool.query(
-            'INSERT INTO notifications (message, user_name) VALUES ($1, $2)',
-            [message, user_name]
-          );
-        } catch (e2) {
-          // If notifications schema differs, skip notifying but keep login working.
-        }
-      }
+    // Automation: Alert admins of first-time access
+    if (user.role === 'user' && isFirstLogin) {
+      const alertMsg = `New Personnel Access: ${user.name || user.email} authorized for ${company.toUpperCase()}`;
+      await db.query(
+        'INSERT INTO notifications (message, user_name, type) VALUES ($1, $2, $3)',
+        [alertMsg, user.name || 'System', 'USER_ACCESS']
+      ).catch(() => {}); // Fallback for schema variations
     }
 
     const token = jwt.sign(
-      { id: u.id, role: u.role, name: u.name },
+      { id: user.id, role: user.role, name: user.name, company },
       process.env.JWT_SECRET || 'secretkey',
       { expiresIn: '1d' }
     );
 
     res.json({
       token,
-      role: u.role,
-      name: u.name
+      role: user.role,
+      name: user.name,
+      company,
+      id: user.id
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Login Failure:', err);
+    res.status(500).json({ error: 'Internal Security Error' });
   }
 };
 
 module.exports = {
   register,
   login
-};
+};

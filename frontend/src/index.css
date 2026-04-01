@@ -45,6 +45,22 @@
   background-color: var(--bg-main);
 }
 
+.theme-phoenix {
+  --primary: #1D479B;
+  --primary-light: #2A5BBF;
+  --accent: #E31E24;
+  --accent-hover: #C61A20;
+}
+
+.theme-inpack {
+  --primary: #111827; /* Near Black for contrast */
+  --primary-light: #374151;
+  --accent: #F97316; /* Vibrant Orange */
+  --accent-hover: #EA580C;
+  --success: #22C55E;
+  /* Corporate Green */
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -125,6 +141,12 @@ select {
   width: 100%;
   transition: var(--transition);
   background: white;
+  color: var(--text-main);
+}
+
+option {
+  background-color: #1e293b;
+  color: white;
 }
 
 input:focus,
@@ -185,11 +207,11 @@ select:focus {
   margin-bottom: 2rem;
 }
 
-.text-red {
+.text-accent {
   color: var(--accent);
 }
 
-.text-blue {
+.text-primary {
   color: var(--primary);
 }
 
@@ -232,18 +254,58 @@ tr:hover td {
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
   background: var(--bg-main);
+  border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
+  background: #cbd5e1;
+  border-radius: 5px;
+  border: 2px solid var(--bg-main);
+  transition: all 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: #94a3b8;
+}
+
+/* Premium Corporate Utilities */
+.dot-grid-bg {
+  mask-image: radial-gradient(circle, white, transparent);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.theme-inpack .dot-grid-bg {
+  background-image: radial-gradient(rgba(249, 115, 22, 0.1) 1px, transparent 0);
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.text-on-primary {
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes pulse-soft {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }

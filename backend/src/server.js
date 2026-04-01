@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { errorHandler, notFound } = require('./middleware/errorHandler');
+const companyMiddleware = require('./middleware/companyMiddleware');
 
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
@@ -21,6 +22,7 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+app.use(companyMiddleware);
 
 // Rate Limiting
 const apiLimiter = rateLimit({
@@ -49,12 +51,27 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log('--- PHOENIX SYSTEMS OPERATIONAL ---');
+  console.log(`Port: ${PORT}`);
+  console.log(`Node: ${process.env.NODE_ENV || 'production'}`);
+  console.log('---------------------------------');
+});
+
+// Global Resilience Protocol
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('--- CRITICAL UNHANDLED REJECTION ---');
+    console.error('Promise:', promise);
+    console.error('Reason:', reason);
+    console.error('------------------------------------');
 });
 
 process.on('uncaughtException', (err) => {
+    console.error('--- CRITICAL UNCAUGHT EXCEPTION ---');
+    console.error('Error:', err);
+    console.error('----------------------------------');
+    
     if (err.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use. Please free it and retry.`);
+        console.error(`Port ${PORT} is currently unavailable. Ensure no other instances are running.`);
         process.exit(1);
     }
 });
