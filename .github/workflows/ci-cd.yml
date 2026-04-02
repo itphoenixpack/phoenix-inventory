@@ -69,9 +69,11 @@ jobs:
     - name: Verify Migration Consistency
       run: ./node_modules/.bin/knex migrate:latest
       env:
+        NODE_ENV: development
         DB_HOST: localhost
         DB_USER: user
         DB_PASSWORD: password
+        DB_PORT: 5432
         DB_NAME: inventory_system_test
     - name: Run Tests (Deduplication & Deletion Logic)
       run: npm test
@@ -80,6 +82,7 @@ jobs:
         DB_HOST: localhost
         DB_USER: user
         DB_PASSWORD: password
+        DB_PORT: 5432
         DB_NAME: inventory_system_test
 
   # 3. Frontend Build Verification (Parallel)
@@ -106,7 +109,26 @@ jobs:
         name: frontend-dist
         path: frontend/dist/
 
-  # 4. Docker Audit (Parallel)
+  # 4. Frontend Tests (Parallel)
+  frontend-tests:
+    name: 🧪 Frontend Tests (Vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+    - run: npm ci
+    - name: Run Frontend Tests
+      run: npm test
+
+  # 5. Docker Audit (Parallel)
   docker-audit:
     name: 🐳 Docker Health Audit
     runs-on: ubuntu-latest
@@ -115,10 +137,10 @@ jobs:
     - name: Validate Compose Config
       run: docker compose config --quiet
 
-  # 5. Deployment Readiness (Sequential after Parallelized checks)
+  # 6. Deployment Readiness (Sequential after all parallel checks)
   deploy-readiness:
     name: 🚀 Production Readiness
-    needs: [lint, backend-verification, frontend-build, docker-audit]
+    needs: [lint, backend-verification, frontend-build, frontend-tests, docker-audit]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     steps:
