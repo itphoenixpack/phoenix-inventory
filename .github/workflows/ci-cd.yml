@@ -113,7 +113,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Validate Compose Config
-      run: docker-compose config --quiet
+      run: docker compose config --quiet
 
   # 5. Deployment Readiness (Sequential after Parallelized checks)
   deploy-readiness:
