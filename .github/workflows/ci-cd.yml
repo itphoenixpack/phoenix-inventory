@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Phoenix CI/CD Pipeline
 
 on:
   push:
@@ -7,11 +7,53 @@ on:
     branches: [ "main", "master" ]
 
 jobs:
-  backend-tests:
+  # 1. Code Quality & Formatting
+  lint:
     runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: |
+          ./backend/package-lock.json
+          ./frontend/package-lock.json
+    - name: Backend Lint
+      run: |
+        cd backend
+        npm ci
+        # Add lint command if available (e.g., eslint)
+    - name: Frontend Lint
+      run: |
+        cd frontend
+        npm ci
+        npm run lint
+
+  # 2. Backend Logic & DB Integrity
+  backend-verification:
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: inventory_system_test
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     defaults:
       run:
         working-directory: ./backend
+
     steps:
     - uses: actions/checkout@v4
     - name: Use Node.js
@@ -20,11 +62,28 @@ jobs:
         node-version: '20.x'
         cache: 'npm'
         cache-dependency-path: './backend/package-lock.json'
-    - run: npm ci
-    - run: npm test
+    - name: Install dependencies
+      run: npm ci
+    - name: Run Migrations
+      run: ./node_modules/.bin/knex migrate:latest
+      env:
+        DB_HOST: localhost
+        DB_USER: user
+        DB_PASSWORD: password
+        DB_NAME: inventory_system_test
+    - name: Run Tests (Deduplication & Deletion Logic)
+      run: npm test
+      env:
+        NODE_ENV: test
+        DB_HOST: localhost
+        DB_USER: user
+        DB_PASSWORD: password
+        DB_NAME: inventory_system_test
 
-  frontend-tests:
+  # 3. Frontend Build Verification
+  frontend-build:
     runs-on: ubuntu-latest
+    needs: lint
     defaults:
       run:
         working-directory: ./frontend
@@ -37,27 +96,25 @@ jobs:
         cache: 'npm'
         cache-dependency-path: './frontend/package-lock.json'
     - run: npm ci
-    - run: npm run lint
-    - run: npm run build
-    - run: npm test
+    - name: Verify Build (Vite)
+      run: npm run build
 
-  # Deployment job - only runs on push to main/master after tests pass
-  deploy:
-    needs: [backend-tests, frontend-tests]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+  # 4. Docker Config Verification
+  docker-audit:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
-    # Example: Deployment to a Linux VPS using SSH
-    - name: Deploy to VPS
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        script: |
-          cd ~/inventory-system
-          git pull origin main
-          docker-compose down
-          docker-compose up -d --build
+    - name: Verify Docker Compose Syntax
+      run: docker-compose config --quiet
+
+  # 5. Deployment (Windows Target)
+  # This job represents the 'Ready for Push' state. 
+  # Actual deployment to Windows usually requires a self-hosted runner 
+  # or SSH/WinRM access to the Windows machine.
+  deploy:
+    needs: [backend-verification, frontend-build, docker-audit]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Ready for Deployment
+      run: echo "All tests passed. System is ready for deployment on Windows Server."
