@@ -22,7 +22,7 @@ graph TD
 
     subgraph "Multi-Tenant Data Storage"
         Knex -->|"PHOENIX_DB"| DB1[(PostgreSQL: Phoenix)]
-        Knex -->|"IMPACK_DB"| DB2[(PostgreSQL: Impack)]
+        Knex -->|"INPACK_DB"| DB2[(PostgreSQL: Inpack)]
     end
 
     subgraph "Security Layer"
@@ -104,9 +104,9 @@ graph LR
 
 ---
 
-## 🔐 Multi-Tenant Isolation (Phoenix vs Impack)
+## 🔐 Multi-Tenant Isolation (Phoenix vs Inpack)
 Phoenix Inventory supports a dual-tenant architecture for organizational sub-entities:
-- **Isolated Databases**: Complete data segregation between `phoenix` and `impack` tenants.
+- **Isolated Databases**: Complete data segregation between `phoenix` and `inpack` tenants.
 - **Role-Based Access**: Granular control for `super_admin`, `admin`, and `user` roles across all sub-companies.
 
 ---
