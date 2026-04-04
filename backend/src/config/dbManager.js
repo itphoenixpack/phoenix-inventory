@@ -14,15 +14,26 @@ const commonConfig = {
   port: Number(process.env.DB_PORT || 5432),
 };
 
-const phoenixPool = new Pool({
-  ...commonConfig,
-  database: process.env.PHOENIX_DB || 'inventory_system',
-});
+const getPoolConfig = (dbEnvName, defaultDbName, urlEnvName) => {
+  if (process.env[urlEnvName]) {
+    return {
+      connectionString: process.env[urlEnvName],
+      ssl: { rejectUnauthorized: false }
+    };
+  } else if (process.env.DATABASE_URL) {
+    return {
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    };
+  }
+  return {
+    ...commonConfig,
+    database: process.env[dbEnvName] || defaultDbName
+  };
+};
 
-const impackPool = new Pool({
-  ...commonConfig,
-  database: process.env.IMPACK_DB || 'impack_db',
-});
+const phoenixPool = new Pool(getPoolConfig('PHOENIX_DB', 'inventory_system', 'DATABASE_URL'));
+const impackPool = new Pool(getPoolConfig('IMPACK_DB', 'impack_db', 'DATABASE_URL_IMPACK'));
 
 const getDB = (companyRaw) => {
   const company = normalizeCompany(companyRaw) || 'phoenix';
