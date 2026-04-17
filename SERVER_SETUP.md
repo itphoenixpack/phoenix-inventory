@@ -453,25 +453,31 @@ RDP (port 3389) is restricted to Tailscale network only (configured in Step 6.5)
 
 ---
 
-### Step 15: Verify Everything — TO DO
+### Step 15: Verify Everything — DONE
 
-Run on the server:
-```powershell
-hostname
-node --version
-npm --version
-psql --version
-git --version
-ssh localhost "echo SSH works"
-tailscale status
-Get-Service PhoenixBackend, PhoenixNginx, Tailscale, sshd, postgresql* | Select Name, Status, StartType
-Invoke-WebRequest -Uri http://localhost:5000 -UseBasicParsing
-Invoke-WebRequest -Uri http://localhost -UseBasicParsing
+**On the server — all checks passed:**
+- `hostname` → `PHOENIX-SVR`
+- `node --version` → `v20.18.1`
+- `npm --version` → `10.8.2`
+- `psql --version` → PostgreSQL 15
+- `git --version` → Git installed
+- `ssh Administrator@localhost` → SSH login successful
+- `tailscale status` → 4 devices online (server, desktop, laptop, phone)
+- All services running: PhoenixBackend, PhoenixNginx, postgresql-x64-15, sshd, Tailscale (all `Running` + `Automatic`)
+- `Invoke-WebRequest http://localhost:5000` → `200 OK` — "Inventory API Running"
+- `Invoke-WebRequest http://localhost` → `200 OK` — serves React HTML
+
+**From laptop — verified:**
+- Browser: `http://100.119.90.5` → Phoenix Inventory login page loads
+- Terminal: `ssh Administrator@100.119.90.5` → SSH connects
+
+**Tailscale network:**
 ```
-
-From laptop:
-- Browser: `http://100.119.90.5` (should show login page)
-- Terminal: `ssh Administrator@100.119.90.5` (should connect)
+100.119.90.5    phoenix-svr      (server)
+100.112.110.39  desktop-d2ltv44  (home PC)
+100.78.84.3     laptop-3mji9uge  (laptop)
+100.91.255.44   xiaomi-15-ultra  (phone)
+```
 
 ---
 
