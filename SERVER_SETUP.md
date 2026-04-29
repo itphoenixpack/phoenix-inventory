@@ -12,8 +12,10 @@
 ## Server Identity
 
 - **Hostname**: `PHOENIX-SVR`
-- **Tailscale IP**: `100.119.90.5` (fixed, works from anywhere)
-- **LAN IP**: DHCP (temporary) — static IP to be set when moved to permanent router
+- **Tailscale IP**: `100.119.90.5` (fixed, works from anywhere — admin access only)
+- **LAN IP**: `192.168.1.90` (static, on Etisalat router)
+- **Public IP**: `217.165.165.14` (Etisalat WAN, dynamic — but irrelevant since we use Cloudflare Tunnel)
+- **Domain**: `phoenix-softwares.com` (Cloudflare-managed)
 
 ---
 
@@ -21,10 +23,10 @@
 
 | Method | Address | Username | From Where |
 |--------|---------|----------|------------|
-| **RDP (GUI)** | `mstsc /v:100.119.90.5` | `PHOENIX-SVR\Administrator` | Anywhere (Tailscale only) |
-| **SSH (CLI)** | `ssh Administrator@100.119.90.5` | `Administrator` | Anywhere |
-| **App (Browser)** | `http://100.119.90.5` | N/A | Anywhere via Tailscale |
-| **App (LAN)** | `http://192.168.x.x` | N/A | Same network only |
+| **Phoenix Inventory** | `https://inventory.phoenix-softwares.com` | App login | Anywhere, any device, no Tailscale needed |
+| **Mattermost Chat** | `https://mattermost.phoenix-softwares.com` | App login | Anywhere, any device, no Tailscale needed |
+| **RDP (Admin GUI)** | `mstsc /v:100.119.90.5` | `PHOENIX-SVR\Administrator` | Anywhere (Tailscale only — restricted by firewall) |
+| **SSH (Admin CLI)** | `ssh Administrator@100.119.90.5` | `Administrator` | Anywhere via Tailscale |
 
 ---
 
@@ -37,10 +39,12 @@
 | **PhoenixBackend** | NSSM Service | Yes | Node.js Express API on port 5000 |
 | **PhoenixNginx** | NSSM Service | Yes | Nginx serving frontend on port 80, proxying /api to backend |
 | **sshd** | Windows Service | Yes | OpenSSH server for remote CLI access and GitHub Actions deploy |
+| **MattermostServer** | Scheduled Task | Yes | Launches WSL → Mattermost on port 8065 (with auto-restart loop) |
+| **CloudflareTunnel** | Scheduled Task | Yes | Cloudflared tunnel exposing apps to internet (no port forwarding) |
 | **Auto-login** | Registry | Yes | Logs in as Administrator automatically |
 | **AutoLockAfterLogin** | Scheduled Task | Yes | Locks screen immediately after auto-login |
 
-**Boot sequence**: Power on → Windows boots → Auto-logs in as Administrator → Screen locks immediately → All services start → App is live → RDP/SSH accessible via Tailscale.
+**Boot sequence**: Power on → Windows boots → Auto-logs in as Administrator → Screen locks immediately → All services start → Both apps are live and accessible via public domain → RDP/SSH accessible via Tailscale.
 
 ---
 
@@ -614,117 +618,230 @@ Copy-Item C:\phoenix-inventory\.env.example C:\phoenix-inventory\backend\.env
 
 ---
 
-## Current Server Capabilities (as of 2026-04-17)
+## Current Server Capabilities (as of 2026-04-29)
 
-- App accessible via Tailscale IP at `http://100.119.90.5` (devices on Tailscale network only)
-- App accessible via LAN IP at `http://192.168.x.x` (devices on same local network as server)
-- NOT accessible from the public internet (no domain, no port forwarding, no HTTPS)
-- Auto-deploy on every push to `main` via GitHub Actions (~1-3 min deploy time)
-- All services auto-start on boot, no physical login required
-- RDP restricted to Tailscale network only
-- Physical access blocked by auto-lock screen
-
----
-
-## Future Setup Instructions
-
-### Priority 1: Static IP (when server moves to permanent router)
-
-**When:** Before placing the server in the server rack with its permanent network connection.
-
-**Why:** DHCP can change the server's LAN IP after a reboot. Static IP ensures the server is always reachable at the same LAN address.
-
-**Steps:**
-
-1. Find the new router's subnet info:
-   - Log into the router admin page (usually `192.168.1.1` or `192.168.0.1` in a browser)
-   - Note the subnet range (e.g., `192.168.1.x`)
-   - Pick an IP outside the DHCP range (e.g., `192.168.1.100`) — check the router's DHCP settings to see the range
-
-2. On the server:
-   - Server Manager > Local Server > Ethernet > click the network adapter link
-   - Right-click adapter > Properties > Internet Protocol Version 4 (TCP/IPv4) > Properties
-   - Select **"Use the following IP address"**
-   - **IP address**: `192.168.1.100` (or your chosen address)
-   - **Subnet mask**: `255.255.255.0`
-   - **Default gateway**: `192.168.1.1` (your router's IP)
-   - Select **"Use the following DNS server addresses"**
-   - **Preferred DNS**: `8.8.8.8`
-   - **Alternate DNS**: `8.8.4.4`
-   - Click OK, close
-
-3. Verify internet still works:
-   ```powershell
-   Test-NetConnection -ComputerName google.com -Port 443
-   ```
-
-4. The `SERVER_HOST` GitHub Secret uses the Tailscale IP (`100.119.90.5`) — this does NOT change when you set a static LAN IP, so no update needed there.
-
-5. For LAN users who accessed the app via the old DHCP IP, share the new static IP.
+- **Phoenix Inventory** live at `https://inventory.phoenix-softwares.com` — works on any device, any browser, anywhere in the world
+- **Mattermost Chat** live at `https://mattermost.phoenix-softwares.com` — real-time messaging working, WebSocket-enabled
+- **Admin access** via Tailscale (RDP + SSH from anywhere, restricted by firewall)
+- **Auto-deploy** of inventory app on every push to `main` via GitHub Actions
+- **All services auto-start on boot**, no physical login required
+- **No port forwarding needed** — Cloudflare Tunnel bypasses ISP port blocks (Etisalat blocks inbound port 80)
+- Both apps accessible without any client setup (no Tailscale, no VPN, no app install — just a URL)
 
 ---
 
-### Priority 2: HTTPS/SSL with Domain via Cloudflare
+## Step 17: Static IP — DONE
 
-**When:** When the server has its permanent internet connection and static IP, and you want the app accessible from the public internet.
+- Server LAN IP set to `192.168.1.90` on Etisalat router subnet
+- Subnet mask: `255.255.255.0`
+- Default gateway: `192.168.1.1`
+- DNS: `8.8.8.8` / `8.8.4.4`
+- Verified internet works after change
 
-**Why:** HTTPS encrypts traffic, a domain name gives a professional URL, and Cloudflare provides free SSL, DDoS protection, and DNS management.
+---
 
-**What you need:**
-- A domain name (~$10/year from Cloudflare Registrar, Namecheap, or Porkbun)
-- A Cloudflare account (free)
-- Your public IP address (run `curl ifconfig.me` from the server, or Google "what is my IP")
+## Step 18: Domain Setup with Cloudflare Tunnel — DONE
 
-**Steps:**
+**Why Cloudflare Tunnel (not port forwarding):** Etisalat blocks inbound port 80. Port forwarding rules saved correctly but traffic never reaches the server. Cloudflare Tunnel uses an outbound connection from server to Cloudflare, bypassing ISP blocks entirely. More secure too — server stays invisible to public internet.
 
-1. **Buy a domain** (e.g., `phoenixinventory.com` or `phoenix-systems.com`):
-   - Go to `https://www.cloudflare.com/products/registrar/`
-   - Search for an available domain
-   - Purchase it (~$10/year)
+### Domain
+- Bought `phoenix-softwares.com` on Cloudflare Registrar
+- DNS managed by Cloudflare
 
-2. **Add the domain to Cloudflare** (if bought elsewhere):
-   - Log into Cloudflare dashboard
-   - Click "Add a site" → enter your domain
-   - Select Free plan
-   - Update nameservers at your registrar to the ones Cloudflare provides
+### Subdomains (CNAME records pointing to tunnel)
+| Subdomain | Routes To |
+|-----------|-----------|
+| `inventory.phoenix-softwares.com` | Phoenix Inventory app (Nginx → backend) |
+| `mattermost.phoenix-softwares.com` | Mattermost (direct to port 8065) |
+| `phoenix-softwares.com` | Redirects to inventory subdomain |
 
-3. **Create a DNS A record**:
-   - In Cloudflare DNS settings for your domain
-   - Type: **A**
-   - Name: `@` (root domain) or `inventory` (for a subdomain like `inventory.yourdomain.com`)
-   - Content: your **public IP address**
-   - Proxy status: **Proxied** (orange cloud ON) — this gives you free SSL
+### Cloudflare Settings
+- **SSL/TLS**: Flexible
+- **Network > WebSockets**: ON
+- **DNS**: All records Proxied (orange cloud)
 
-4. **Set up port forwarding on your router**:
-   - Log into router admin
-   - Forward **port 80** (HTTP) → server's static LAN IP (e.g., `192.168.1.100`) port 80
-   - Forward **port 443** (HTTPS) → server's static LAN IP port 443
-   - Cloudflare handles SSL termination, so Nginx still serves on port 80
+### Cloudflared Tunnel Setup
 
-5. **Configure Cloudflare SSL**:
-   - In Cloudflare dashboard > SSL/TLS
-   - Set mode to **"Flexible"** (Cloudflare handles HTTPS to visitors, talks HTTP to your server)
-   - This means you do NOT need to install an SSL certificate on the server
+```powershell
+Invoke-WebRequest -UseBasicParsing "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile C:\cloudflared.exe
+C:\cloudflared.exe tunnel login
+C:\cloudflared.exe tunnel create phoenix-tunnel
+```
 
-6. **Update Nginx config** (on the server):
-   ```powershell
-   notepad C:\nginx\conf\nginx.conf
-   ```
-   Change `server_name localhost;` to `server_name yourdomain.com;` (your actual domain)
-   
-   Then restart Nginx:
-   ```powershell
-   nssm restart PhoenixNginx
-   ```
+Tunnel ID: `20db35e1-b49b-4395-801f-18c54445a5a3`
 
-7. **Update frontend API URL**:
-   - The frontend's `axios.js` has `http://localhost:5000/api` hardcoded
-   - With Nginx proxying `/api` to the backend, the frontend should use relative URLs
-   - This may require a code change: `baseURL` should be `/api` instead of `http://localhost:5000/api`
+Config file: `C:\Users\Administrator\.cloudflared\config.yml`
+```yaml
+tunnel: 20db35e1-b49b-4395-801f-18c54445a5a3
+credentials-file: C:\Users\Administrator\.cloudflared\20db35e1-b49b-4395-801f-18c54445a5a3.json
 
-8. **Test**: Open `https://yourdomain.com` in a browser from any device, anywhere
+ingress:
+  - hostname: inventory.phoenix-softwares.com
+    service: http://localhost:80
+  - hostname: mattermost.phoenix-softwares.com
+    service: http://localhost:8065
+  - hostname: phoenix-softwares.com
+    service: http://localhost:80
+  - service: http_status:404
+```
 
-**Result:** App accessible at `https://yourdomain.com` from any device in the world, with free SSL from Cloudflare.
+DNS routes added via:
+```powershell
+C:\cloudflared.exe tunnel route dns phoenix-tunnel inventory.phoenix-softwares.com
+C:\cloudflared.exe tunnel route dns phoenix-tunnel mattermost.phoenix-softwares.com
+C:\cloudflared.exe tunnel route dns phoenix-tunnel phoenix-softwares.com
+```
+
+### Tunnel Auto-Start (Scheduled Task, NOT NSSM)
+
+NSSM service couldn't manage cloudflared properly (kept showing SERVICE_PAUSED). Switched to Scheduled Task.
+
+Wrapper script: `C:\cloudflared-service.ps1`
+```powershell
+while ($true) {
+    C:\cloudflared.exe --config "C:\Users\Administrator\.cloudflared\config.yml" tunnel run phoenix-tunnel
+    Start-Sleep -Seconds 5
+}
+```
+
+Scheduled Task created with:
+```powershell
+$Action = New-ScheduledTaskAction -Execute "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File C:\cloudflared-service.ps1"
+$Trigger = New-ScheduledTaskTrigger -AtStartup
+$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
+$Principal = New-ScheduledTaskPrincipal -UserId "PHOENIX-SVR\Administrator" -LogonType S4U -RunLevel Highest
+$Task = New-ScheduledTask -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal
+Register-ScheduledTask -TaskName "CloudflareTunnel" -InputObject $Task -Force
+```
+
+---
+
+## Step 19: Frontend Axios Fix — DONE
+
+**Problem:** Frontend hardcoded `http://localhost:5000/api` which only works locally. Once accessed via the public domain, all API calls failed.
+
+**Fix:** Changed `frontend/src/api/axios.js` `baseURL` from `http://localhost:5000/api` to `/api`. Nginx proxies `/api` to the backend, so relative URL works from any domain.
+
+Committed to repo, auto-deployed via GitHub Actions.
+
+---
+
+## Step 20: Inpack Database Setup — DONE (TEMPORARY)
+
+**Problem:** Super admin only seeded into `inventory_system` (Phoenix DB). Logging into Inpack failed with "Identity not found in current logistics node."
+
+**Fix:** Copied schema from Phoenix DB to Inpack DB and inserted super admin:
+
+```powershell
+pg_dump -U postgres -d inventory_system --schema-only | psql -U postgres -d inpack_db
+```
+
+Then in `psql -U postgres -d inpack_db`:
+```sql
+INSERT INTO users (name, email, password, role, status, created_at, updated_at)
+VALUES ('Super Administrator', 'superadmin@phoenic-pack.com', '$2b$10$T7bgz44YPcemCKp5JjToguHGMXQatzf.m.mUHvjckdsSwV/44L2PS', 'super_admin', 'active', NOW(), NOW());
+```
+
+**Important:** Use `psql` interactive mode for the INSERT — PowerShell mangles `$` characters in the bcrypt hash. The first attempt via `-c` flag truncated the password to `.m.mUHvjckdsSwV/44L2PS` and login failed with "Security key verification failed."
+
+This is temporary until the Inpack-specific code update lands with proper migrations and seed data for that DB.
+
+---
+
+## Step 21: Mattermost Installation — DONE
+
+### Why WSL1 (not Docker, not native binary)
+
+- Docker Desktop doesn't support Windows Server 2019
+- Docker Engine on Windows only runs Windows containers, not Linux
+- Mattermost dropped Windows server binaries in February 2025
+- WSL1 is the only viable native option (Server 2019 doesn't support WSL2)
+
+### Setup Steps Done
+
+**WSL1 + Ubuntu 20.04:**
+```powershell
+Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
+# Restart required
+Invoke-WebRequest -Uri https://aka.ms/wslubuntu2004 -OutFile C:\Ubuntu.zip -UseBasicParsing
+Expand-Archive C:\Ubuntu.zip -DestinationPath C:\Ubuntu -Force
+# Extract inner x64 appx
+Rename-Item "C:\Ubuntu\Ubuntu_2004.2021.825.0_x64.appx" "C:\Ubuntu\Ubuntu_x64.zip"
+Expand-Archive "C:\Ubuntu\Ubuntu_x64.zip" -DestinationPath C:\Ubuntu\x64 -Force
+C:\Ubuntu\x64\ubuntu.exe   # Initialize, create mmadmin user
+```
+
+**Mattermost Database:**
+```powershell
+psql -U postgres -c "CREATE DATABASE mattermost;"
+psql -U postgres -c "CREATE USER mmuser WITH PASSWORD 'MatterM0st_DB!';"
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE mattermost TO mmuser;"
+psql -U postgres -c "ALTER DATABASE mattermost OWNER TO mmuser;"
+```
+
+**Mattermost Server (Linux 10.5.1) inside WSL:**
+```bash
+sudo apt update && sudo apt upgrade -y
+wget https://releases.mattermost.com/10.5.1/mattermost-10.5.1-linux-amd64.tar.gz
+sudo tar -xzf mattermost-10.5.1-linux-amd64.tar.gz -C /opt
+sudo mkdir /opt/mattermost/data
+sudo useradd --system --user-group mattermost
+sudo chown -R mattermost:mattermost /opt/mattermost
+sudo chmod -R g+w /opt/mattermost
+```
+
+**Passwordless sudo for mmadmin** (so service doesn't hang on password prompt):
+```bash
+sudo visudo
+# Add line: mmadmin ALL=(ALL) NOPASSWD: ALL
+```
+
+**Mattermost config** (`/opt/mattermost/config/config.json`):
+- `DriverName`: `postgres`
+- `DataSource`: `postgres://mmuser:MatterM0st_DB!@localhost:5432/mattermost?sslmode=disable&connect_timeout=10`
+- `SiteURL`: `https://mattermost.phoenix-softwares.com`
+- `EnableUploads`: `true`
+- `EnableMarketplace`: `true`
+- `EnableRemoteMarketplace`: `true`
+
+**Config file permissions** (must be readable by mattermost user):
+```bash
+sudo chmod 664 /opt/mattermost/config/config.json
+sudo chown -R mattermost:mattermost /opt/mattermost
+```
+
+### Mattermost Auto-Start (Scheduled Task)
+
+NSSM doesn't work with WSL processes — gets `SERVICE_PAUSED` error. Used Scheduled Task instead.
+
+Wrapper script: `C:\mattermost-service.ps1`
+```powershell
+while ($true) {
+    wsl bash -c "cd /opt/mattermost && sudo -u mattermost ./bin/mattermost"
+    Start-Sleep -Seconds 5
+}
+```
+
+Scheduled Task `MattermostServer` registered at startup, runs as Administrator, no time limit.
+
+**IMPORTANT:** `ubuntu.exe run` lands in Windows home directory — DO NOT use it. Always use `wsl bash -c` to execute commands inside Linux filesystem.
+
+---
+
+## Step 22: Mattermost WebSocket Fix — DONE
+
+**Problem:** Messages didn't appear in real-time. Users had to refresh the page to see new messages. Browser console showed `WebSocket connection to 'wss://mattermost.phoenix-softwares.com/api/v4/websocket' failed`.
+
+**Root cause:** Mattermost generates WebSocket URLs from `SiteURL`. The SiteURL was still `http://100.119.90.5:8065` (Tailscale IP) instead of the public domain. Mattermost was telling the browser to connect WebSocket to the wrong URL.
+
+**Fix:**
+1. **System Console > Web Server > Site URL** changed from `http://100.119.90.5:8065` to `https://mattermost.phoenix-softwares.com`
+2. **Forward port 80 to 443**: False
+3. **Connection Security**: None (Cloudflare handles SSL)
+4. Tunnel config routes `mattermost.phoenix-softwares.com` directly to `http://localhost:8065` (bypasses Nginx)
+5. Cloudflare SSL/TLS mode: **Flexible**, WebSockets toggle: **ON**, DNS: **Proxied (orange)**
+
+**Note:** Editing config.json directly via nano did NOT stick reliably — the System Console approach is more reliable. The mmctl approach requires local mode which adds complexity. Stick with System Console.
 
 ---
 
@@ -865,3 +982,25 @@ nssm restart PhoenixNginx
 - Authorized keys: `C:\ProgramData\ssh\administrators_authorized_keys`
 - Check permissions: `icacls C:\ProgramData\ssh\administrators_authorized_keys`
 - Restart SSH: `Restart-Service sshd`
+
+### Mattermost not loading / 502 Bad Gateway
+- Check Mattermost is actually listening: `netstat -an | findstr 8065`
+- Check scheduled task: `Get-ScheduledTask -TaskName "MattermostServer" | Select TaskName, State`
+- Kill zombies before restart: `wsl sudo killall mattermost`
+- Then: `Stop-ScheduledTask -TaskName "MattermostServer"; Start-ScheduledTask -TaskName "MattermostServer"`
+
+### Mattermost messages not appearing in real-time
+- WebSocket issue. Check Site URL in System Console = `https://mattermost.phoenix-softwares.com`
+- Cloudflare SSL/TLS = Flexible, WebSockets toggle = ON
+- Tunnel ingress for mattermost goes to `http://localhost:8065` (NOT through Nginx port 80)
+
+### Cloudflare Tunnel not connecting
+- Check service: `Get-ScheduledTask -TaskName "CloudflareTunnel"`
+- Check tunnel registration: `C:\cloudflared.exe tunnel list` — phoenix-tunnel should show connections
+- If "system lacked sufficient buffer space" error appears, REBOOT the server — it's network buffer exhaustion from zombie processes
+
+### Network buffer exhaustion (everything fails after multiple restarts)
+- Symptoms: services say "Running" but ports aren't actually listening, local connections fail with "unable to connect"
+- Cause: too many zombie WSL/cloudflared processes consumed Windows network buffers
+- Fix: `shutdown /r /t 30 /c "Cleaning up"` then wait 3 minutes
+- Prevention: always run `wsl sudo killall mattermost` before restarting MattermostServer task
